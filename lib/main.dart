@@ -1,6 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-
-import 'ui/home/home_page.dart';
+import 'package:notes_flutter/firebase/auth.dart';
+import 'package:notes_flutter/ui/home/home_page.dart';
+import 'package:notes_flutter/ui/wrapper.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +21,11 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade800),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: FutureProvider<FirebaseApp?>.value(
+        value: Firebase.initializeApp(),
+        initialData: null,
+        child: const Wrapper(),
+      ),
     );
   }
 }
