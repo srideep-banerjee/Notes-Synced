@@ -21,9 +21,13 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade800),
         useMaterial3: true,
       ),
-      home: FutureProvider<FirebaseApp?>.value(
-        value: Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-        initialData: null,
+      home: MultiProvider(
+        providers: [
+          FutureProvider<FirebaseApp?>.value(
+            value: Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+            initialData: null,
+          ),
+        ],
         child: const Wrapper(),
       ),
     );
