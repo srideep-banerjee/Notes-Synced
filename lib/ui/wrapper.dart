@@ -9,10 +9,12 @@ class Wrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Provider.of<FirebaseApp?>(context) == null) {
+    if (context.watch<FirebaseApp?>() == null) {
+      print("firebase not initialized yet");
       return const HomePage();
     }
 
+    print("Firebase initialized");
     return StreamProvider<User?>.value(
       value: Authenticator().user,
       initialData: null,
