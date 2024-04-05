@@ -1,9 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notes_flutter/default_settings.dart';
+import 'package:notes_flutter/models/notes_item.dart';
 
-class DetailsPage extends StatelessWidget {
-  const DetailsPage({super.key});
+class DetailsPage extends StatefulWidget {
+  final NotesItem? notesItem;
+
+  const DetailsPage({this.notesItem, super.key});
+
+  @override
+  State<DetailsPage> createState() => _DetailsPageState();
+}
+
+class _DetailsPageState extends State<DetailsPage> {
+
+  late TextEditingController titleController, bodyController;
+
+  @override
+  void initState() {
+    super.initState();
+    titleController = TextEditingController(text: widget.notesItem?.title);
+    bodyController = TextEditingController(text: widget.notesItem?.content);
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    bodyController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,17 +39,35 @@ class DetailsPage extends StatelessWidget {
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {},
+          onPressed: () {
+            NotesItem input = widget.notesItem??const NotesItem(title: "", content: "");
+            if (titleController.text != "" && (titleController.text != input.title || bodyController.text != input.content)) {
+              Navigator.pop(context, NotesItem(title: titleController.text, content: bodyController.text));
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.save,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+            onPressed: () {
+
+            },
+          ),
+        ],
       ),
-      body: const Padding(
-        padding: EdgeInsets.all(8.0),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
-            TitleText(),
-            Divider(),
+            TitleText(titleController),
+            const Divider(),
             Expanded(
-              child: BodyText(),
+              child: BodyText(bodyController),
             ),
           ],
         ),
@@ -33,27 +76,11 @@ class DetailsPage extends StatelessWidget {
   }
 }
 
-class TitleText extends StatefulWidget {
-  const TitleText({super.key});
+class TitleText extends StatelessWidget {
 
-  @override
-  State<TitleText> createState() => _TitleTextState();
-}
+  final TextEditingController controller;
 
-class _TitleTextState extends State<TitleText> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
+  const TitleText(this.controller, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -74,27 +101,11 @@ class _TitleTextState extends State<TitleText> {
   }
 }
 
-class BodyText extends StatefulWidget {
-  const BodyText({super.key});
+class BodyText extends StatelessWidget {
 
-  @override
-  State<BodyText> createState() => _BodyTextState();
-}
+  final TextEditingController controller;
 
-class _BodyTextState extends State<BodyText> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
+  const BodyText(this.controller, {super.key});
 
   @override
   Widget build(BuildContext context) {

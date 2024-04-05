@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes_flutter/ui/details/details_page.dart';
 import 'package:notes_flutter/ui/home/profile_icon.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 
@@ -11,14 +12,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
 
-  late Future<List<NotesItem>> notesListFuture;
+  late Future<void> notesListFuture;
+  late List<NotesItem> notesItemList;
 
   @override
   void initState() {
     super.initState();
-    print("initState Started");
-    notesListFuture = createList(10);
-    print("initState complete");
+    notesListFuture = _createList(10);
   }
 
   @override
@@ -32,7 +32,9 @@ class _HomePageState extends State<HomePage> {
         actions: const [ProfileIcon()],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          _addItem(context);
+        },
         child: const Icon(Icons.add),
       ),
       body: FutureBuilder(
@@ -41,19 +43,19 @@ class _HomePageState extends State<HomePage> {
           if (snapshot.connectionState == ConnectionState.done) {
             print("Displaying List");
 
-            if (snapshot.data!.isEmpty) {
+            if (notesItemList.isEmpty) {
               return const Center(
                 child: Text("No notes created")
               );
             }
 
             return ListView.builder(
-              itemCount: snapshot.data!.length,
+              itemCount: notesItemList.length,
               itemBuilder: (context, index) {
                 return NotesItemDisplay(
-                  snapshot.data![index].title,
+                  notesItemList[index].title,
                   onClick: () {
-                    print("Item at index: $index clicked");
+                    _displayDetails(context, index);
                   },
                 );
               },
@@ -69,13 +71,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<List<NotesItem>> createList(int length) async {
-    return List<NotesItem>.generate(
+  Future<void> _createList(int length) async {
+    notesItemList = List<NotesItem>.generate(
         length, (index) => NotesItem(title: "title $index", content: "content $index")
     );
   }
 
+  Future<void> _addItem(BuildContext context) async {
+    Future<NotesItem?> resultFuture = Navigator
+        .of(context)
+        .push(MaterialPageRoute(builder: (context) => const DetailsPage()));
+    NotesItem? result = await resultFuture;
+    setState(() {
+      if (context.mounted && result != null) {
+        notesItemList.add(result);
+      }
+    });
+  }
 
+  Future<void> _displayDetails(BuildContext context, int index) async {
+    NotesItem input = notesItemList[index];
+    Future<NotesItem?> resultFuture = Navigator
+        .of(context)
+        .push(MaterialPageRoute(builder: (context) => DetailsPage(notesItem: input)));
+    NotesItem? result = await resultFuture;
+    setState(() {
+      if (context.mounted && result != null) {
+        notesItemList[index] = result;
+      }
+    });
+  }
 }
 
 class NotesItemDisplay extends StatelessWidget {
