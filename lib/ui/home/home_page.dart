@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:notes_flutter/ui/details/details_page.dart';
 import 'package:notes_flutter/ui/home/profile_icon.dart';
 import 'package:notes_flutter/models/notes_item.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,22 +16,20 @@ class _HomePageState extends State<HomePage> {
   late Future<void> notesListFuture;
   late List<NotesItem> notesItemList;
 
+  late Set<int> selectedIndices;
+
   @override
   void initState() {
     super.initState();
     notesListFuture = _createList(10);
+    selectedIndices = {};
   }
 
   @override
   Widget build(BuildContext context) {
     print("Home page build called");
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Notes"),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        actions: const [ProfileIcon()],
-      ),
+      appBar: selectedIndices.isEmpty ? getDefaultAppBar(context) : getSelectionAppBar(context),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _addItem(context);
@@ -54,8 +53,29 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (context, index) {
                 return NotesItemDisplay(
                   notesItemList[index].title,
-                  onClick: () {
-                    _displayDetails(context, index);
+                  isSelected: selectedIndices.contains(index),
+                  onTap: () {
+                    if (selectedIndices.isNotEmpty) {
+                      if (selectedIndices.contains(index)) {
+                        setState(() {
+                          selectedIndices.remove(index);
+                        });
+                      } else {
+                        setState(() {
+                          selectedIndices.add(index);
+                        });
+                      }
+                    } else {
+                      _displayDetails(context, index);
+                    }
+                  },
+                  onDelete: () {
+                    deleteItem(index);
+                  },
+                  onLongPress: () {
+                    setState(() {
+                      selectedIndices.add(index);
+                    });
                   },
                 );
               },
@@ -101,25 +121,114 @@ class _HomePageState extends State<HomePage> {
       }
     });
   }
+
+  void deleteItems() {
+    setState(() {
+      for (int index in selectedIndices) {
+        notesItemList.removeAt(index);
+      }
+      selectedIndices.clear();
+    });
+  }
+
+  void deleteItem(int index) {
+    setState(() {
+      notesItemList.removeAt(index);
+    });
+  }
+  
+  PreferredSizeWidget getDefaultAppBar(BuildContext context) {
+    return AppBar(
+      title: const Text("Notes"),
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      actions: const [ProfileIcon()],
+    );
+  }
+
+  PreferredSizeWidget getSelectionAppBar(BuildContext context) {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () {
+          setState(() {
+            selectedIndices.clear();
+          });
+        },
+      ),
+      title: Text("${selectedIndices.length} item selected"),
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: deleteItems,
+        )
+      ],
+    );
+  }
 }
 
-class NotesItemDisplay extends StatelessWidget {
+class NotesItemDisplay extends StatefulWidget {
   final String title;
-  final Function onClick;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onLongPress;
+  final bool isSelected;
 
   NotesItemDisplay(
-    this.title, {
-    super.key,
-    Function? onClick,
-  }) : onClick = onClick ?? (() {});
+    this.title,
+      {
+        super.key,
+        this.isSelected = false,
+        VoidCallback? onTap,
+        VoidCallback? onDelete,
+        VoidCallback? onLongPress,
+      }
+      ) :
+        onTap = onTap ?? (() {}),
+        onDelete = onDelete ?? (() {}),
+        onLongPress = onLongPress ?? (() {});
+
+  @override
+  State<NotesItemDisplay> createState() => _NotesItemDisplayState();
+}
+
+class _NotesItemDisplayState extends State<NotesItemDisplay> {
+
+  bool isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        onClick();
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          isHovered = true;
+        });
       },
-      child: Text(title),
+      onExit: (_) {
+        setState(() {
+          isHovered = false;
+        });
+      },
+      child: GestureDetector(
+        onTap: () {
+          widget.onTap();
+        },
+        onLongPress: () {
+          if(!kIsWeb) widget.onLongPress();
+        },
+        child: Row(
+          children: [
+            Expanded(child: Text(widget.title)),
+            if (kIsWeb && isHovered) IconButton(
+              onPressed: widget.onDelete,
+              icon: const Icon(Icons.delete),
+            ),
+            if (!kIsWeb && widget.isSelected) const Icon(Icons.check_circle)
+          ],
+        ),
+      ),
     );
   }
 }
