@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:notes_flutter/firebase_options.dart';
+import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/ui/wrapper.dart';
 import 'package:provider/provider.dart';
 
@@ -27,6 +28,10 @@ class MyApp extends StatelessWidget {
             value: Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
             initialData: null,
           ),
+          Provider<DatabaseHelper>(
+            create: (_) => DatabaseHelper(),
+            dispose: (_, value) => value.dispose(),
+          )
         ],
         child: const Wrapper(),
       ),

@@ -1,28 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:notes_flutter/local/database_local.dart';
+import 'package:notes_flutter/local/note_model.dart';
 import 'package:notes_flutter/ui/details/details_page.dart';
-import 'package:notes_flutter/ui/home/profile_icon.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:notes_flutter/ui/home/profile_icon.dart';
+import 'package:provider/provider.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
 
-  late Future<void> notesListFuture;
-  late List<NotesItem> notesItemList;
+  Future<List<NoteModel>>? notesListFuture;
+  DatabaseHelper? databaseHelper;
+  List<NoteModel> notesItemList = [];
 
   late Set<int> selectedIndices;
 
   @override
   void initState() {
     super.initState();
-    notesListFuture = _createList(10);
+    print("Home page init called");
     selectedIndices = {};
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      setState(() {
+        databaseHelper = Provider.of<DatabaseHelper>(context, listen: false);
+        notesListFuture = databaseHelper?.getNoteList();
+      });
+    });
   }
 
   @override
@@ -39,61 +49,57 @@ class _HomePageState extends State<HomePage> {
       body: FutureBuilder(
         future: notesListFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            print("Displaying List");
-
-            if (notesItemList.isEmpty) {
-              return const Center(
-                child: Text("No notes created")
-              );
-            }
-
-            return ListView.builder(
-              itemCount: notesItemList.length,
-              itemBuilder: (context, index) {
-                return NotesItemDisplay(
-                  notesItemList[index].title,
-                  isSelected: selectedIndices.contains(index),
-                  onTap: () {
-                    if (selectedIndices.isNotEmpty) {
-                      if (selectedIndices.contains(index)) {
-                        setState(() {
-                          selectedIndices.remove(index);
-                        });
-                      } else {
-                        setState(() {
-                          selectedIndices.add(index);
-                        });
-                      }
-                    } else {
-                      _displayDetails(context, index);
-                    }
-                  },
-                  onDelete: () {
-                    deleteItem(index);
-                  },
-                  onLongPress: () {
-                    setState(() {
-                      selectedIndices.add(index);
-                    });
-                  },
-                );
-              },
-            );
-          } else {
+          if (snapshot.connectionState != ConnectionState.done) {
             print("Notes List is loading");
             return const Center(
-              child: Text("Loading ...")
+              child: Text("Loading ..."),
             );
           }
+
+          if (snapshot.hasData) notesItemList = snapshot.data!;
+
+          if (notesItemList.isEmpty) {
+            print("List empty");
+            return const Center(
+                child: Text("No notes created")
+            );
+          }
+
+          print("Displaying List");
+          return ListView.builder(
+            itemCount: notesItemList.length,
+            itemBuilder: (context, index) {
+              return NotesItemDisplay(
+                notesItemList[index].title,
+                isSelected: selectedIndices.contains(index),
+                onTap: () {
+                  if (selectedIndices.isNotEmpty) {
+                    if (selectedIndices.contains(index)) {
+                      setState(() {
+                        selectedIndices.remove(index);
+                      });
+                    } else {
+                      setState(() {
+                        selectedIndices.add(index);
+                      });
+                    }
+                  } else {
+                    _displayDetails(context, index);
+                  }
+                },
+                onDelete: () {
+                  _deleteItem(index);
+                },
+                onLongPress: () {
+                  setState(() {
+                    selectedIndices.add(index);
+                  });
+                },
+              );
+            },
+          );
         },
       ),
-    );
-  }
-
-  Future<void> _createList(int length) async {
-    notesItemList = List<NotesItem>.generate(
-        length, (index) => NotesItem(title: "title $index", content: "content $index")
     );
   }
 
@@ -102,27 +108,32 @@ class _HomePageState extends State<HomePage> {
         .of(context)
         .push(MaterialPageRoute(builder: (context) => const DetailsPage()));
     NotesItem? result = await resultFuture;
-    setState(() {
-      if (context.mounted && result != null) {
-        notesItemList.add(result);
-      }
-    });
+    if (result != null && databaseHelper != null) {
+      int index = await databaseHelper!.addNote(result);
+      setState(() {
+        notesItemList.add(result.toNoteModel(index));
+      });
+    }
   }
 
   Future<void> _displayDetails(BuildContext context, int index) async {
-    NotesItem input = notesItemList[index];
+    NotesItem input = notesItemList[index].toNotesItem();
     Future<NotesItem?> resultFuture = Navigator
         .of(context)
         .push(MaterialPageRoute(builder: (context) => DetailsPage(notesItem: input)));
-    NotesItem? result = await resultFuture;
-    setState(() {
-      if (context.mounted && result != null) {
+    NoteModel? result = (await resultFuture)?.toNoteModel(notesItemList[index].index);
+    if (result != null) {
+      databaseHelper?.updateNote(result);
+      setState(() {
         notesItemList[index] = result;
-      }
-    });
+      });
+    }
   }
 
-  void deleteItems() {
+  void _deleteSelectedItems() {
+
+    databaseHelper?.deleteMultipleNotes(selectedIndices.map<int>((index) => notesItemList[index].index));
+
     setState(() {
       for (int index in selectedIndices) {
         notesItemList.removeAt(index);
@@ -131,7 +142,10 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void deleteItem(int index) {
+  void _deleteItem(int index) {
+
+    databaseHelper?.deleteNote(notesItemList[index]);
+
     setState(() {
       notesItemList.removeAt(index);
     });
@@ -162,7 +176,7 @@ class _HomePageState extends State<HomePage> {
       actions: [
         IconButton(
           icon: const Icon(Icons.delete),
-          onPressed: deleteItems,
+          onPressed: _deleteSelectedItems,
         )
       ],
     );
