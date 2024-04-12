@@ -1,15 +1,31 @@
+import 'package:flutter/foundation.dart';
 import 'package:notes_flutter/local/note_model.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class DatabaseHelper {
   late Future<Database> _futureDatabase;
+  String DATABASE_NAME = "notes_database.db";
 
   DatabaseHelper() {
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+      _futureDatabase = openDatabase(
+        DATABASE_NAME,
+        onCreate: (db, version) {
+          return db.execute(
+            "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL)",
+          );
+        },
+        version: 1,
+      );
+      return;
+    }
     _futureDatabase = getDatabasesPath().then(
       (databasePath) => openDatabase(
-        join(databasePath, "notes_database.db"),
+        join(databasePath, DATABASE_NAME),
         onCreate: (db, version) {
           return db.execute(
             "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL)",
