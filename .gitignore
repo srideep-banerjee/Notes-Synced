@@ -45,3 +45,4 @@ app.*.map.json
 /lib/firebase_options.dart
 /web/sqflite_sw.js
 /web/sqlite3.wasm
+/flutter_01.sksl.json
