@@ -12,27 +12,44 @@ class DatabaseHelper {
   DatabaseHelper() {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
-      _futureDatabase = openDatabase(
-        DATABASE_NAME,
-        onCreate: (db, version) {
-          return db.execute(
-            "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL)",
-          );
-        },
-        version: 1,
-      );
+      _futureDatabase = _getDatabaseFuture(DATABASE_NAME);
       return;
     }
     _futureDatabase = getDatabasesPath().then(
-      (databasePath) => openDatabase(
-        join(databasePath, DATABASE_NAME),
-        onCreate: (db, version) {
-          return db.execute(
-            "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL)",
+      (databasePath) => _getDatabaseFuture(join(databasePath, DATABASE_NAME))
+    );
+  }
+
+  Future<Database> _getDatabaseFuture(String path) {
+    return openDatabase(
+      DATABASE_NAME,
+
+      onCreate: (db, version) {
+        return db.execute(
+          "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, time TEXT NOT NULL)",
+        );
+      },
+
+      onUpgrade: (Database db, int oldVersion, int newVersion) {
+        print("Upgrading database");
+        Future<void>? upgradeFuture;
+
+        chainFuture(Future<void> future) {
+          //Initialize upgradeFuture to future if upgradeFuture is null else chain future
+          upgradeFuture = upgradeFuture?.then((_) => future) ?? future;
+        }
+
+        if (oldVersion < 2 && newVersion >= 2) {
+          String currentTime = DateTime.timestamp().toString();
+          chainFuture(
+            db.execute("ALTER TABLE notes ADD COLUMN time TEXT DEFAULT \"$currentTime\" NOT NULL")
+                .then((_) => db.rawUpdate("UPDATE notes SET time = ?", [currentTime])),
           );
-        },
-        version: 1,
-      ),
+        }
+
+        return upgradeFuture;
+      },
+      version: 2,
     );
   }
 
@@ -45,15 +62,18 @@ class DatabaseHelper {
           index: it["index"] as int,
           title: it["title"] as String,
           content: it["content"] as String,
+          time: it["time"] as String,
         )));
   }
 
-  Future<int> addNote(NotesItem notesItem) async {
+  Future<int> addNote(NotesItem notesItem, String time) async {
     Database database = await _futureDatabase;
+    Map<String, Object?> notesItemMap = notesItem.toMap();
+    notesItemMap["time"] = time;
 
     int index = await database.insert(
       "notes",
-      notesItem.toMap(),
+      notesItemMap,
       conflictAlgorithm: ConflictAlgorithm.fail,
     );
 

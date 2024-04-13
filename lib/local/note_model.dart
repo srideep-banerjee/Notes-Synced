@@ -4,7 +4,8 @@ class NoteModel {
   final int index;
   final String title;
   final String content;
-  const NoteModel({required this.index, required this.title, required this.content});
+  final String time;
+  const NoteModel({required this.index, required this.title, required this.content, required this.time});
 
   NotesItem toNotesItem() {
     return NotesItem(title: title, content: content);
@@ -15,6 +16,7 @@ class NoteModel {
       "index" : index,
       "title" : title,
       "content" : content,
+      "time" : time,
     };
   }
 }

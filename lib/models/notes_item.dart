@@ -5,8 +5,8 @@ class NotesItem {
   final String content;
   const NotesItem({required this.title, required this.content});
 
-  NoteModel toNoteModel(int index) {
-    return NoteModel(index: index, title: title, content: content);
+  NoteModel toNoteModel(int index, String time) {
+    return NoteModel(index: index, title: title, content: content, time: time);
   }
 
   Map<String, Object?> toMap() {

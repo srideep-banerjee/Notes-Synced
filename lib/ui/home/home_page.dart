@@ -6,6 +6,7 @@ import 'package:notes_flutter/models/notes_item.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:notes_flutter/ui/home/profile_icon.dart';
 import 'package:provider/provider.dart';
+import 'package:notes_flutter/util/date_time_util.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -71,6 +72,7 @@ class HomePageState extends State<HomePage> {
             itemBuilder: (context, index) {
               return NotesItemDisplay(
                 notesItemList[index].title,
+                notesItemList[index].time,
                 isSelected: selectedIndices.contains(index),
                 onTap: () {
                   if (selectedIndices.isNotEmpty) {
@@ -109,9 +111,10 @@ class HomePageState extends State<HomePage> {
         .push(MaterialPageRoute(builder: (context) => const DetailsPage()));
     NotesItem? result = await resultFuture;
     if (result != null && databaseHelper != null) {
-      int index = await databaseHelper!.addNote(result);
+      String time = DateTime.timestamp().toString();
+      int index = await databaseHelper!.addNote(result, time);
       setState(() {
-        notesItemList.add(result.toNoteModel(index));
+        notesItemList.add(result.toNoteModel(index, time));
       });
     }
   }
@@ -121,11 +124,13 @@ class HomePageState extends State<HomePage> {
     Future<NotesItem?> resultFuture = Navigator
         .of(context)
         .push(MaterialPageRoute(builder: (context) => DetailsPage(notesItem: input)));
-    NoteModel? result = (await resultFuture)?.toNoteModel(notesItemList[index].index);
+    NotesItem? result = await resultFuture;
     if (result != null) {
-      databaseHelper?.updateNote(result);
+      String time = DateTime.timestamp().toString();
+      NoteModel noteModel = result.toNoteModel(notesItemList[index].index, time);
+      databaseHelper?.updateNote(noteModel);
       setState(() {
-        notesItemList[index] = result;
+        notesItemList[index] = noteModel;
       });
     }
   }
@@ -187,6 +192,7 @@ class HomePageState extends State<HomePage> {
 
 class NotesItemDisplay extends StatefulWidget {
   final String title;
+  final String time;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onLongPress;
@@ -194,6 +200,7 @@ class NotesItemDisplay extends StatefulWidget {
 
   NotesItemDisplay(
     this.title,
+      String time,
       {
         super.key,
         this.isSelected = false,
@@ -204,7 +211,8 @@ class NotesItemDisplay extends StatefulWidget {
       ) :
         onTap = onTap ?? (() {}),
         onDelete = onDelete ?? (() {}),
-        onLongPress = onLongPress ?? (() {});
+        onLongPress = onLongPress ?? (() {}),
+        time = getLocalizedTime(time);
 
   @override
   State<NotesItemDisplay> createState() => _NotesItemDisplayState();
@@ -241,7 +249,8 @@ class _NotesItemDisplayState extends State<NotesItemDisplay> {
               onPressed: widget.onDelete,
               icon: const Icon(Icons.delete),
             ),
-            if (!kIsWeb && widget.isSelected) const Icon(Icons.check_circle)
+            if (!kIsWeb && widget.isSelected) const Icon(Icons.check_circle),
+            Text(widget.time),
           ],
         ),
       ),
