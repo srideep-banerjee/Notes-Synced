@@ -135,7 +135,9 @@ class HomePageState extends State<HomePage> {
     databaseHelper?.deleteMultipleNotes(selectedIndices.map<int>((index) => notesItemList[index].index));
 
     setState(() {
-      for (int index in selectedIndices) {
+      List<int> rearrangedIndices = List.of(selectedIndices);
+      rearrangedIndices.sort((a, b) => b.compareTo(a));
+      for (int index in rearrangedIndices) {
         notesItemList.removeAt(index);
       }
       selectedIndices.clear();
