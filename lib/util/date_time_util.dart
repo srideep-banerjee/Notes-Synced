@@ -12,12 +12,12 @@ String getLocalizedTime(String time) {
     return "${duration.inHours} hour${duration.inHours > 1 ? "s" : ""} ago";
   } else if (current.year == dateTime.year) {
     if (current.month == dateTime.month && current.day == dateTime.day + 1) {
-      return "Yesterday at ${dateTime.hour}:${dateTime.minute}";
+      return "Yesterday at ${dateTime.hour}:${dateTime.minute~/10}${dateTime.minute%10}";
     } else {
-      return "${_getMonth(dateTime.month)} ${dateTime.day} at ${dateTime.hour}:${dateTime.minute}";
+      return "${_getMonth(dateTime.month)} ${dateTime.day} at ${dateTime.hour}:${dateTime.minute~/10}${dateTime.minute%10}";
     }
   } else {
-    return "${_getMonth(dateTime.month)} ${dateTime.day}, ${dateTime.year} at ${dateTime.hour}:${dateTime.minute}";
+    return "${_getMonth(dateTime.month)} ${dateTime.day}, ${dateTime.year} at ${dateTime.minute~/10}${dateTime.minute%10}";
   }
 }
 
