@@ -8,7 +8,7 @@ String getLocalizedTime(String time) {
     return "${duration.inSeconds} second${duration.inSeconds > 1 ? "s" : ""} ago";
   } else if (duration.inMinutes < 60) {
     return "${duration.inMinutes} minute${duration.inMinutes > 1 ? "s" : ""} ago";
-  } else if (duration.inHours <= 24) {
+  } else if (duration.inHours < 24) {
     return "${duration.inHours} hour${duration.inHours > 1 ? "s" : ""} ago";
   } else if (current.year == dateTime.year) {
     if (current.month == dateTime.month && current.day == dateTime.day + 1) {
