@@ -1,16 +1,36 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:notes_flutter/firebase_options.dart';
+import 'package:notes_flutter/firebase/auth.dart';
+import 'package:notes_flutter/firebase/firebase_helper.dart';
 import 'package:notes_flutter/local/database_local.dart';
-import 'package:notes_flutter/ui/wrapper.dart';
+import 'package:notes_flutter/ui/home/home_page.dart';
 import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  late DatabaseHelper _databaseHelper;
+  late FirebaseHelper _firebaseHelper;
+  late Stream<User?> _userStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _databaseHelper = DatabaseHelper();
+    _firebaseHelper = FirebaseHelper();
+    _userStream = _firebaseHelper.authenticator.getUser();
+  }
+
+
 
   // This widget is the root of your application.
   @override
@@ -24,16 +44,16 @@ class MyApp extends StatelessWidget {
       ),
       home: MultiProvider(
         providers: [
-          FutureProvider<FirebaseApp?>.value(
-            value: Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-            initialData: null,
+          Provider<DatabaseHelper>.value(
+            value: _databaseHelper,
+            updateShouldNotify: (_,__) => false,
           ),
-          Provider<DatabaseHelper>(
-            create: (_) => DatabaseHelper(),
-            dispose: (_, value) => value.dispose(),
+          StreamProvider<User?>.value(
+            value: _userStream,
+            initialData: null,
           )
         ],
-        child: const Wrapper(),
+        child: const HomePage(),
       ),
     );
   }
