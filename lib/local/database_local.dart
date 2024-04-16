@@ -95,7 +95,6 @@ class DatabaseHelper {
 
   Future<void> deleteMultipleNotes(Iterable<int> indices) async {
     Database database = await _futureDatabase;
-    print(indices.toString());
 
     await database.delete(
       "notes",
