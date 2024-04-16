@@ -40,8 +40,8 @@ dependencies:
   sqflite_common_ffi_web: ^0.4.0
   firebase_core: ^2.24.2
   firebase_auth: ^4.16.0
-  google_sign_in: ^6.1.6
   firebase_ui_auth: ^1.10.0
+  firebase_ui_oauth_google: ^1.2.14
 
 dev_dependencies:
   flutter_test:
@@ -52,7 +52,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  flutter_lints: ^3.0.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

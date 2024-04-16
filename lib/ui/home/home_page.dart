@@ -137,7 +137,11 @@ class HomePageState extends State<HomePage> {
 
   void _deleteSelectedItems() {
 
-    databaseHelper?.deleteMultipleNotes(selectedIndices.map<int>((index) => notesItemList[index].index));
+    databaseHelper?.deleteMultipleNotes(
+        List.of(
+            selectedIndices.map<int>((index) => notesItemList[index].index)
+        )
+    );
 
     setState(() {
       List<int> rearrangedIndices = List.of(selectedIndices);

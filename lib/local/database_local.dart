@@ -74,7 +74,7 @@ class DatabaseHelper {
     int index = await database.insert(
       "notes",
       notesItemMap,
-      conflictAlgorithm: ConflictAlgorithm.fail,
+      conflictAlgorithm: ConflictAlgorithm.rollback,
     );
 
     return index;
@@ -95,6 +95,7 @@ class DatabaseHelper {
 
   Future<void> deleteMultipleNotes(Iterable<int> indices) async {
     Database database = await _futureDatabase;
+    print(indices.toString());
 
     await database.delete(
       "notes",

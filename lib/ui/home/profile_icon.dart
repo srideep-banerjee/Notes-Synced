@@ -1,5 +1,9 @@
+import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:notes_flutter/firebase/auth.dart';
+import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
+import 'package:notes_flutter/firebase_options.dart';
 import 'package:provider/provider.dart';
 
 class ProfileIcon extends StatefulWidget {
@@ -10,26 +14,33 @@ class ProfileIcon extends StatefulWidget {
 }
 
 class _ProfileIconState extends State<ProfileIcon> {
-
   String text = "";
   Color? _colorValue;
 
   Color get _color {
-    _colorValue ??= HSLColor
-        .fromAHSL(1.0, (_customHash % 361).toDouble(), 1.0, 0.35,)
-        .toColor();
+    _colorValue ??= HSLColor.fromAHSL(
+      1.0,
+      (_customHash % 361).toDouble(),
+      1.0,
+      0.35,
+    ).toColor();
     return _colorValue!;
   }
 
   Color? _borderColorValue;
+
   Color get _borderColor {
-    _borderColorValue ??= HSLColor
-        .fromAHSL(1.0, (_customHash % 361).toDouble(), 1.0, 0.25,)
-        .toColor();
+    _borderColorValue ??= HSLColor.fromAHSL(
+      1.0,
+      (_customHash % 361).toDouble(),
+      1.0,
+      0.25,
+    ).toColor();
     return _borderColorValue!;
   }
 
   int? _customHashValue;
+
   int get _customHash {
     if (_customHashValue != null) {
       return _customHashValue!;
@@ -52,22 +63,52 @@ class _ProfileIconState extends State<ProfileIcon> {
       _colorValue = null;
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Container(
-        width: 32.0,
-        height: 32.0,
-        decoration: BoxDecoration(
-            color: user == null ? Colors.transparent: _color,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: user == null ?
-              Theme.of(context).colorScheme.onPrimary: _borderColor,
-              width: user == null ? 2.0 : 1.0,
-            )
+    return GestureDetector(
+      onTap: () {
+        if (user == null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => SignInScreen(
+              providers: [
+                EmailAuthProvider(),
+                GoogleProvider(clientId: DefaultFirebaseOptions.webClientId)
+              ],
+              actions: [
+                AuthStateChangeAction((context, state) {
+                  if (state is AuthFailed) {
+                    PlatformException pe = (state.exception as PlatformException);
+                    print("////////////////////////${pe.code} , ${pe.message}///////////////////////");
+                    print(pe.stacktrace);
+                  }
+                })
+              ],
+            )),
+          );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const ProfileScreen(
+              actions: [],
+            )),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Container(
+          width: 32.0,
+          height: 32.0,
+          decoration: BoxDecoration(
+              color: user == null ? Colors.transparent : _color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: user == null
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : _borderColor,
+                width: user == null ? 2.0 : 1.0,
+              )),
+          child: user == null
+              ? const DefaultProfileIconImage()
+              : TextProfileIconImage(text),
         ),
-        child: user == null ?
-        const DefaultProfileIconImage() : TextProfileIconImage(text),
       ),
     );
   }
@@ -83,7 +124,6 @@ class DefaultProfileIconImage extends StatelessWidget {
 }
 
 class TextProfileIconImage extends StatelessWidget {
-
   final String text;
 
   const TextProfileIconImage(this.text, {super.key});
@@ -92,10 +132,10 @@ class TextProfileIconImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        text.substring(0,1).toUpperCase(),
+        text.substring(0, 1).toUpperCase(),
         style: TextStyle(
           color: Theme.of(context).colorScheme.onPrimary,
-          fontSize: 20.0,
+          fontSize: 15.0,
         ),
       ),
     );
