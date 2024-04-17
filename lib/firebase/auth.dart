@@ -9,7 +9,7 @@ class Authenticator {
         _futureFirebaseAuth = futureFirebaseApp.
         then((_) => fb.FirebaseAuth.instance);
 
-  Stream<User?> getUser() async* {
+  Stream<User?> getUserStream() async* {
     fb.FirebaseAuth auth = await _futureFirebaseAuth;
     yield* auth.authStateChanges().map(_firebaseUserToUser);
   }

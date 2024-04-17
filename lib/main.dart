@@ -27,7 +27,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _databaseHelper = DatabaseHelper();
     _firebaseHelper = FirebaseHelper();
-    _userStream = _firebaseHelper.authenticator.getUser();
+    _userStream = _firebaseHelper.authenticator.getUserStream();
   }
 
 
