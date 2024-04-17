@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notes_flutter/firebase/auth.dart';
 import 'package:notes_flutter/firebase/firebase_helper.dart';
+import 'package:notes_flutter/firebase/firestore_helper.dart';
 import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/ui/home/home_page.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,7 @@ class _MyAppState extends State<MyApp> {
 
   late DatabaseHelper _databaseHelper;
   late FirebaseHelper _firebaseHelper;
+  late FirestoreHelper _firestoreHelper;
   late Stream<User?> _userStream;
 
   @override
@@ -28,6 +30,7 @@ class _MyAppState extends State<MyApp> {
     _databaseHelper = DatabaseHelper();
     _firebaseHelper = FirebaseHelper();
     _userStream = _firebaseHelper.authenticator.getUserStream();
+    _firestoreHelper = _firebaseHelper.firestoreHelper;
   }
 
 
@@ -46,6 +49,10 @@ class _MyAppState extends State<MyApp> {
         providers: [
           Provider<DatabaseHelper>.value(
             value: _databaseHelper,
+            updateShouldNotify: (_,__) => false,
+          ),
+          Provider<FirestoreHelper>.value(
+            value: _firestoreHelper,
             updateShouldNotify: (_,__) => false,
           ),
           StreamProvider<User?>.value(
