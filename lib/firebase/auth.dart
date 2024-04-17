@@ -1,13 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:notes_flutter/firebase/firebase_emulator.dart';
 
 class Authenticator {
 
   final Future<fb.FirebaseAuth> _futureFirebaseAuth;
 
-  Authenticator(Future<FirebaseApp> futureFirebaseApp):
+  Authenticator(Future<FirebaseApp> futureFirebaseApp, [FirebaseEmulator? emulator]):
         _futureFirebaseAuth = futureFirebaseApp.
-        then((_) => fb.FirebaseAuth.instance);
+        then((_) {
+          fb.FirebaseAuth auth = fb.FirebaseAuth.instance;
+          if(emulator != null) {
+            auth.useAuthEmulator(emulator.ip, emulator.port);
+          }
+          return auth;
+        });
 
   Stream<User?> getUserStream() async* {
     fb.FirebaseAuth auth = await _futureFirebaseAuth;
