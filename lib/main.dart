@@ -3,6 +3,7 @@ import 'package:notes_flutter/firebase/auth.dart';
 import 'package:notes_flutter/firebase/firebase_helper.dart';
 import 'package:notes_flutter/firebase/firestore_helper.dart';
 import 'package:notes_flutter/local/database_local.dart';
+import 'package:notes_flutter/local/preferences_helper.dart';
 import 'package:notes_flutter/ui/home/home_page.dart';
 import 'package:provider/provider.dart';
 
@@ -20,6 +21,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
 
   late DatabaseHelper _databaseHelper;
+  late PreferencesHelper _preferencesHelper;
   late FirebaseHelper _firebaseHelper;
   late FirestoreHelper _firestoreHelper;
   late Stream<User?> _userStream;
@@ -28,6 +30,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _databaseHelper = DatabaseHelper();
+    _preferencesHelper = PreferencesHelper();
     _firebaseHelper = FirebaseHelper();
     _userStream = _firebaseHelper.authenticator.getUserStream();
     _firestoreHelper = _firebaseHelper.firestoreHelper;
@@ -49,6 +52,10 @@ class _MyAppState extends State<MyApp> {
         providers: [
           Provider<DatabaseHelper>.value(
             value: _databaseHelper,
+            updateShouldNotify: (_,__) => false,
+          ),
+          Provider<PreferencesHelper>.value(
+            value: _preferencesHelper,
             updateShouldNotify: (_,__) => false,
           ),
           Provider<FirestoreHelper>.value(
