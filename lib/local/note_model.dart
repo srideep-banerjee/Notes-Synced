@@ -5,7 +5,18 @@ class NoteModel {
   final String title;
   final String content;
   final String time;
-  const NoteModel({required this.index, required this.title, required this.content, required this.time});
+  final String? firestoreId;
+  const NoteModel({required this.index, required this.title, required this.content, required this.time, this.firestoreId});
+
+  static NoteModel fromMap(Map<String, Object?> map) {
+    return NoteModel(
+      index: map["index"] as int,
+      title: map["title"] as String,
+      content: map["content"] as String,
+      time: map["time"] as String,
+      firestoreId: map["firestoreId"] as String?
+    );
+  }
 
   NotesItem toNotesItem() {
     return NotesItem(title: title, content: content);
@@ -17,6 +28,7 @@ class NoteModel {
       "title" : title,
       "content" : content,
       "time" : time,
+      "firestoreId" : firestoreId
     };
   }
 }

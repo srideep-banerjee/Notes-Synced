@@ -26,7 +26,7 @@ class DatabaseHelper {
 
       onCreate: (db, version) {
         return db.execute(
-          "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, time TEXT NOT NULL)",
+          "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, time TEXT NOT NULL, firestoreId TEXT)",
         );
       },
 
@@ -46,10 +46,15 @@ class DatabaseHelper {
                 .then((_) => db.rawUpdate("UPDATE notes SET time = ?", [currentTime])),
           );
         }
+        if (oldVersion < 3 && newVersion >= 3) {
+          chainFuture(
+            db.execute("ALTER TABLE notes ADD COLUMN firestoreId TEXT")
+          );
+        }
 
         return upgradeFuture;
       },
-      version: 2,
+      version: 3,
     );
   }
 
