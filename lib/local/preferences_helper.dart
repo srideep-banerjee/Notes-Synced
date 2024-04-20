@@ -7,19 +7,23 @@ class PreferencesHelper {
     _sharedPreferencesFuture = SharedPreferences.getInstance();
   }
 
+  Future<bool> containsKey(String key) async {
+    return (await _sharedPreferencesFuture).containsKey(key);
+  }
+
   Future<bool?> getBool(String key) async {
     return (await _sharedPreferencesFuture).getBool(key);
   }
 
-  void setBool(String key, bool value) async {
-    (await _sharedPreferencesFuture).setBool(key, value);
+  Future<bool> setBool(String key, bool value) async {
+    return (await _sharedPreferencesFuture).setBool(key, value);
   }
 
   Future<String?> getString(String key) async {
     return (await _sharedPreferencesFuture).getString(key);
   }
 
-  void setString(String key, String value) async {
-    (await _sharedPreferencesFuture).setString(key, value);
+  Future<bool> setString(String key, String value) async {
+    return (await _sharedPreferencesFuture).setString(key, value);
   }
 }
