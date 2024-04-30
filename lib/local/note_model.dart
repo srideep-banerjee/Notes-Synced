@@ -1,3 +1,4 @@
+import 'package:notes_flutter/firebase/firestore_note_model.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 
 class NoteModel {
@@ -30,5 +31,17 @@ class NoteModel {
       "time" : time,
       "firestoreId" : firestoreId
     };
+  }
+
+  FirestoreNoteModel? toFirestoreNoteModel() {
+    if (firestoreId == null) {
+      return null;
+    } else {
+      return FirestoreNoteModel(firestoreId!, title, content, time);
+    }
+  }
+
+  NoteModel setFirestoreId(String firestoreId) {
+    return NoteModel(index: index, title: title, content: content, time: time, firestoreId: firestoreId);
   }
 }

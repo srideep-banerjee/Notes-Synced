@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:notes_flutter/local/note_model.dart';
 
 class FirestoreNoteModel{
   final String documentId;
@@ -33,5 +34,15 @@ class FirestoreNoteModel{
       "content": content,
       "last_updated": Timestamp.fromDate(DateTime.parse(lastUpdated)),
     };
+  }
+
+  NoteModel toNoteModel(int index) {
+    return NoteModel(
+      index: index,
+      title: title,
+      content: content,
+      time: lastUpdated,
+      firestoreId: documentId,
+    );
   }
 }
