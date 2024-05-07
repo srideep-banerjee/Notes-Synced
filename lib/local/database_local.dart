@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:notes_flutter/firebase/firestore_note_model.dart';
 import 'package:notes_flutter/local/note_model.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 import 'package:path/path.dart';
@@ -71,6 +74,18 @@ class DatabaseHelper {
         )));
   }
 
+  Future<List<NoteModel>> getLocalUpsertList(String lastUpdated) async {
+    Database database = await _futureDatabase;
+
+    List<Map<String, Object?>> noteMapList = await database.query(
+        "notes",
+        where: "time > ?",
+        whereArgs: [lastUpdated]
+    );
+
+    return noteMapList.map((item) => NoteModel.fromMap(item)).toList();
+  }
+
   Future<int> addNote(NotesItem notesItem, String time) async {
     Database database = await _futureDatabase;
     Map<String, Object?> notesItemMap = notesItem.toMap();
@@ -96,6 +111,63 @@ class DatabaseHelper {
       conflictAlgorithm: ConflictAlgorithm.fail,
     );
     print("$count rows affected");
+  }
+
+  Future<void> upsertAndDeleteFirebaseNotes(List<FirestoreNoteModel> firebaseNotes, List<String> deletedFirestoreIdList) async {
+    Database db = await _futureDatabase;
+
+    List<String> allFirestoreIds = firebaseNotes.map((val) => val.documentId).toList();
+
+    //Getting details of rows that need to be updated
+    List<Map<String, dynamic>> data = await db.query(
+      "notes",
+      where: "firestoreId IN (${List.filled(allFirestoreIds.length, "?").join(",")})",
+      whereArgs: allFirestoreIds,
+    );
+
+    Set<String> existingFirestoreIds = data
+        .where((value) => value["firestoreId"] != null)
+        .map((value) => value["firestoreId"] as String)
+        .toSet();
+
+    await db.transaction<void>((txn) async {
+      Batch batch = txn.batch();
+      for (FirestoreNoteModel firebaseNote in firebaseNotes) {
+        Map<String,Object?> map = {
+          "title": firebaseNote.title,
+          "content": firebaseNote.content,
+          "time" : firebaseNote.lastUpdated,
+        };
+        if (existingFirestoreIds.contains(firebaseNote.documentId)) {
+          batch.update("notes", map, where: "firestoreId = ?", whereArgs: [firebaseNote.documentId]);
+        } else {
+          map["firestoreId"] = firebaseNote.documentId;
+          batch.insert("notes", map);
+        }
+      }
+
+      batch.delete(
+        "notes",
+        where: "firestoreId IN (${List.filled(deletedFirestoreIdList.length, "?").join(",")})",
+        whereArgs: deletedFirestoreIdList,
+      );
+    });
+  }
+
+  Future<void> updateNewFirestoreIds(List<int> indices, List<String> firestoreIds) async {
+    Database database = await _futureDatabase;
+    database.transaction((txn) {
+      Batch batch = txn.batch();
+      for (int i = 0; i < indices.length; i++) {
+        batch.update(
+          "notes",
+          {"firestoreId": firestoreIds[i]},
+          where: "`index` = ?",
+          whereArgs: [indices[i]],
+        );
+      }
+      return batch.commit();
+    });
   }
 
   Future<void> deleteMultipleNotes(Iterable<int> indices) async {
