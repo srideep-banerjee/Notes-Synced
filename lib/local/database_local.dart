@@ -66,12 +66,7 @@ class DatabaseHelper {
 
     List<Map<String, Object?>> noteMapList = await database.query("notes");
 
-    return List<NoteModel>.from(noteMapList.map((it) => NoteModel(
-          index: it["index"] as int,
-          title: it["title"] as String,
-          content: it["content"] as String,
-          time: it["time"] as String,
-        )));
+    return List<NoteModel>.from(noteMapList.map(NoteModel.fromMap));
   }
 
   Future<List<NoteModel>> getLocalUpsertList(String lastUpdated) async {
