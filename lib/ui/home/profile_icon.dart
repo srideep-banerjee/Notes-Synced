@@ -14,101 +14,80 @@ class ProfileIcon extends StatefulWidget {
 }
 
 class _ProfileIconState extends State<ProfileIcon> {
-  String text = "";
-  Color? _colorValue;
+  Stream<User?>? _userStream;
 
-  Color get _color {
-    _colorValue ??= HSLColor.fromAHSL(
-      1.0,
-      (_customHash % 361).toDouble(),
-      1.0,
-      0.35,
-    ).toColor();
-    return _colorValue!;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      setState(() {
+        _userStream = Provider.of<Authenticator>(context, listen: false).getUserStream();
+      });
+    });
   }
 
-  Color? _borderColorValue;
 
-  Color get _borderColor {
-    _borderColorValue ??= HSLColor.fromAHSL(
-      1.0,
-      (_customHash % 361).toDouble(),
-      1.0,
-      0.25,
-    ).toColor();
-    return _borderColorValue!;
-  }
-
-  int? _customHashValue;
-
-  int get _customHash {
-    if (_customHashValue != null) {
-      return _customHashValue!;
-    }
-    int hash = 0;
-    for (int i = 0; i < text.length; i++) {
-      hash += (i + 1) * text.codeUnitAt(i);
-    }
-    _customHashValue = hash;
-    return hash;
-  }
 
   @override
   Widget build(BuildContext context) {
-    User? user = Provider.of<User?>(context);
-    if (user?.email != null && user?.email != text) {
-      text = (user?.email)!;
-      _customHashValue = null;
-      _borderColorValue = null;
-      _colorValue = null;
-    }
 
-    return GestureDetector(
-      onTap: () {
-        if (user == null) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => SignInScreen(
-              providers: [
-                EmailAuthProvider(),
-                GoogleProvider(clientId: DefaultFirebaseOptions.webClientId)
-              ],
-              actions: [
-                AuthStateChangeAction((context, state) {
-                  if (state is AuthFailed) {
-                    PlatformException pe = (state.exception as PlatformException);
-                    print("////////////////////////${pe.code} , ${pe.message}///////////////////////");
-                    print(pe.stacktrace);
-                  }
-                })
-              ],
-            )),
-          );
-        } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const ProfileScreen(
-              actions: [],
-            )),
-          );
-        }
+    return StreamBuilder<User?>(
+      initialData: null,
+      stream: _userStream,
+
+      builder: (context, snapshot) {
+        User? user = snapshot.data;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              user == null ?
+              _signInPageRout(context) :
+              _profileScreenPageRout(context),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: SizedBox(
+              width: 32.0,
+              height: 32.0,
+              child: user == null
+                  ? const DefaultProfileIconImage()
+                  : TextProfileIconImage(user.email),
+            ),
+          ),
+        );
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: Container(
-          width: 32.0,
-          height: 32.0,
-          decoration: BoxDecoration(
-              color: user == null ? Colors.transparent : _color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: user == null
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : _borderColor,
-                width: user == null ? 2.0 : 1.0,
-              )),
-          child: user == null
-              ? const DefaultProfileIconImage()
-              : TextProfileIconImage(text),
-        ),
+    );
+  }
+
+  MaterialPageRoute _signInPageRout(BuildContext context) {
+    return MaterialPageRoute(
+      builder: (context) => SignInScreen(
+        providers: [
+          EmailAuthProvider(),
+          GoogleProvider(
+            clientId: DefaultFirebaseOptions.webClientId,
+          )
+        ],
+        actions: [
+          AuthStateChangeAction((context, state) {
+            if (state is AuthFailed) {
+              PlatformException pe = (state.exception as PlatformException);
+              print(
+                  "////////////////////////${pe.code} , ${pe.message}///////////////////////");
+              print(pe.stacktrace);
+            }
+          })
+        ],
+      ),
+    );
+  }
+
+  MaterialPageRoute _profileScreenPageRout(BuildContext context) {
+    return MaterialPageRoute(
+      builder: (context) => const ProfileScreen(
+        actions: [],
       ),
     );
   }
@@ -119,7 +98,16 @@ class DefaultProfileIconImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimary);
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onPrimary,
+          width: 2.0,
+        )
+      ),
+      child: Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimary),
+    );
   }
 }
 
@@ -130,14 +118,50 @@ class TextProfileIconImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        text.substring(0, 1).toUpperCase(),
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onPrimary,
-          fontSize: 15.0,
+    return Container(
+      decoration: BoxDecoration(
+        color: _color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: _borderColor,
+          width: 1.0,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          text.substring(0, 1).toUpperCase(),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontSize: 15.0,
+          ),
         ),
       ),
     );
+  }
+
+  Color get _color {
+    return HSLColor.fromAHSL(
+      1.0,
+      (_customHash % 361).toDouble(),
+      1.0,
+      0.35,
+    ).toColor();
+  }
+
+  Color get _borderColor {
+    return HSLColor.fromAHSL(
+      1.0,
+      (_customHash % 361).toDouble(),
+      1.0,
+      0.25,
+    ).toColor();
+  }
+
+  int get _customHash {
+    int hash = 0;
+    for (int i = 0; i < text.length; i++) {
+      hash += (i + 1) * text.codeUnitAt(i);
+    }
+    return hash;
   }
 }

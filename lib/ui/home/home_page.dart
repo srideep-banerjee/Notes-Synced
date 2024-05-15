@@ -1,9 +1,18 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:notes_flutter/firebase/firebase_helper.dart';
+import 'package:notes_flutter/firebase/firestore_helper.dart';
+import 'package:notes_flutter/firebase/notes_change_model.dart';
 import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/local/note_model.dart';
+import 'package:notes_flutter/local/preferences_helper.dart';
+import 'package:notes_flutter/sync/sync_helper.dart';
 import 'package:notes_flutter/ui/details/details_page.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:notes_flutter/ui/home/notes_item_display.dart';
 import 'package:notes_flutter/ui/home/profile_icon.dart';
 import 'package:provider/provider.dart';
 import 'package:notes_flutter/util/date_time_util.dart';
@@ -18,8 +27,10 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage> {
 
   Future<List<NoteModel>>? notesListFuture;
-  DatabaseHelper? databaseHelper;
   List<NoteModel> notesItemList = [];
+  DatabaseHelper? databaseHelper;
+  SyncHelper? syncHelper;
+  Stream<List<NoteModel>>? notesStream;
 
   late Set<int> selectedIndices;
 
@@ -29,9 +40,14 @@ class HomePageState extends State<HomePage> {
     print("Home page init called");
     selectedIndices = {};
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      print("addPostFrameCallback called");
+
       setState(() {
+        print("Set state called");
         databaseHelper = Provider.of<DatabaseHelper>(context, listen: false);
-        notesListFuture = databaseHelper?.getNoteList();
+        syncHelper = Provider.of<SyncHelper>(context, listen: false);
+        // changesStream = syncHelper!.startRealtimeSync();
+        notesStream = databaseHelper!.notesStream;
       });
     });
   }
@@ -47,14 +63,18 @@ class HomePageState extends State<HomePage> {
         },
         child: const Icon(Icons.add),
       ),
-      body: FutureBuilder(
-        future: notesListFuture,
+      body: StreamBuilder<List<NoteModel>>(
+        stream: notesStream,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.active) {
             print("Notes List is loading");
             return const Center(
               child: Text("Loading ..."),
             );
+          }
+
+          if (snapshot.hasError) {
+            print("Error in notes stream: ${snapshot.error as Exception}");
           }
 
           if (snapshot.hasData) notesItemList = snapshot.data!;
@@ -67,41 +87,45 @@ class HomePageState extends State<HomePage> {
           }
 
           print("Displaying List");
-          return ListView.builder(
-            itemCount: notesItemList.length,
-            itemBuilder: (context, index) {
-              return NotesItemDisplay(
-                notesItemList[index].title,
-                notesItemList[index].time,
-                isSelected: selectedIndices.contains(index),
-                onTap: () {
-                  if (selectedIndices.isNotEmpty) {
-                    if (selectedIndices.contains(index)) {
-                      setState(() {
-                        selectedIndices.remove(index);
-                      });
-                    } else {
-                      setState(() {
-                        selectedIndices.add(index);
-                      });
-                    }
-                  } else {
-                    _displayDetails(context, index);
-                  }
-                },
-                onDelete: () {
-                  _deleteItem(index);
-                },
-                onLongPress: () {
-                  setState(() {
-                    selectedIndices.add(index);
-                  });
-                },
-              );
-            },
-          );
+          return homePageList();
         },
-      ),
+      )
+    );
+  }
+
+  Widget homePageList() {
+    return ListView.builder(
+      itemCount: notesItemList.length,
+      itemBuilder: (context, index) {
+        return NotesItemDisplay(
+          notesItemList[index].title,
+          notesItemList[index].time,
+          isSelected: selectedIndices.contains(index),
+          onTap: () {
+            if (selectedIndices.isNotEmpty) {
+              if (selectedIndices.contains(index)) {
+                setState(() {
+                  selectedIndices.remove(index);
+                });
+              } else {
+                setState(() {
+                  selectedIndices.add(index);
+                });
+              }
+            } else {
+              _displayDetails(context, index);
+            }
+          },
+          onDelete: () {
+            _deleteItem(index);
+          },
+          onLongPress: () {
+            setState(() {
+              selectedIndices.add(index);
+            });
+          },
+        );
+      },
     );
   }
 
@@ -111,11 +135,12 @@ class HomePageState extends State<HomePage> {
         .push(MaterialPageRoute(builder: (context) => const DetailsPage()));
     NotesItem? result = await resultFuture;
     if (result != null && databaseHelper != null) {
-      String time = DateTime.timestamp().toString();
-      int index = await databaseHelper!.addNote(result, time);
-      setState(() {
-        notesItemList.add(result.toNoteModel(index, time));
-      });
+      syncHelper?.addNewNote(result);
+      // String time = DateTime.timestamp().toString();
+      // int index = await databaseHelper!.addNote(result, time);
+      // setState(() {
+      //   notesItemList.add(result.toNoteModel(index, time));
+      // });
     }
   }
 
@@ -128,10 +153,11 @@ class HomePageState extends State<HomePage> {
     if (result != null) {
       String time = DateTime.timestamp().toString();
       NoteModel noteModel = result.toNoteModel(notesItemList[index].index, time);
-      databaseHelper?.updateNote(noteModel);
-      setState(() {
-        notesItemList[index] = noteModel;
-      });
+      syncHelper?.updateNote(noteModel);
+      // databaseHelper?.updateNote(noteModel);
+      // setState(() {
+      //   notesItemList[index] = noteModel;
+      // });
     }
   }
 
@@ -144,11 +170,12 @@ class HomePageState extends State<HomePage> {
     );
 
     setState(() {
-      List<int> rearrangedIndices = List.of(selectedIndices);
-      rearrangedIndices.sort((a, b) => b.compareTo(a));
-      for (int index in rearrangedIndices) {
-        notesItemList.removeAt(index);
-      }
+      // List<int> rearrangedIndices = List.of(selectedIndices);
+      // rearrangedIndices.sort((a, b) => b.compareTo(a));
+      // for (int index in rearrangedIndices) {
+      //   notesItemList.removeAt(index);
+      // }
+      // TODO: add deleteMultiple feature to sync helper
       selectedIndices.clear();
     });
   }
@@ -157,9 +184,10 @@ class HomePageState extends State<HomePage> {
 
     databaseHelper?.deleteNote(notesItemList[index]);
 
-    setState(() {
-      notesItemList.removeAt(index);
-    });
+    // setState(() {
+    //   notesItemList.removeAt(index);
+    // });
+    // TODO: add deleteItem feature to sync helper
   }
   
   PreferredSizeWidget getDefaultAppBar(BuildContext context) {
@@ -190,74 +218,6 @@ class HomePageState extends State<HomePage> {
           onPressed: _deleteSelectedItems,
         )
       ],
-    );
-  }
-}
-
-class NotesItemDisplay extends StatefulWidget {
-  final String title;
-  final String time;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-  final VoidCallback onLongPress;
-  final bool isSelected;
-
-  NotesItemDisplay(
-    this.title,
-      String time,
-      {
-        super.key,
-        this.isSelected = false,
-        VoidCallback? onTap,
-        VoidCallback? onDelete,
-        VoidCallback? onLongPress,
-      }
-      ) :
-        onTap = onTap ?? (() {}),
-        onDelete = onDelete ?? (() {}),
-        onLongPress = onLongPress ?? (() {}),
-        time = getLocalizedTime(time);
-
-  @override
-  State<NotesItemDisplay> createState() => _NotesItemDisplayState();
-}
-
-class _NotesItemDisplayState extends State<NotesItemDisplay> {
-
-  bool isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          isHovered = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          isHovered = false;
-        });
-      },
-      child: GestureDetector(
-        onTap: () {
-          widget.onTap();
-        },
-        onLongPress: () {
-          if(!kIsWeb) widget.onLongPress();
-        },
-        child: Row(
-          children: [
-            Expanded(child: Text(widget.title)),
-            if (kIsWeb && isHovered) IconButton(
-              onPressed: widget.onDelete,
-              icon: const Icon(Icons.delete),
-            ),
-            if (!kIsWeb && widget.isSelected) const Icon(Icons.check_circle),
-            Text(widget.time),
-          ],
-        ),
-      ),
     );
   }
 }

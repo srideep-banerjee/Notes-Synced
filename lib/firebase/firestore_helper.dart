@@ -56,9 +56,9 @@ class FirestoreHelper {
     ).data();
   }
 
-  Future<List<String>> getNewDocumentIds(String uid,int count) async {
+  Future<List<String>> getNewDocumentIds(int count) async {
     FirebaseFirestore firestore = await _futureFirebaseFirestore;
-    CollectionReference colRef = firestore.collection("users/$uid/notes");
+    CollectionReference colRef = firestore.collection("users");
     List<String> newIds = [];
     for (int i = 0; i < count; i++) {
       newIds.add(colRef.doc().id);
@@ -129,9 +129,11 @@ class FirestoreHelper {
       return model?.toMap() ?? <String, Object?>{};
     }
 
+    if (lastUpdated.isEmpty) lastUpdated = DateTime(2).toUtc().toString();
+
     yield* firestore.collection("users/$uid/notes")
         .withConverter(fromFirestore: from, toFirestore: to)
-        .where(DefaultSettings.lastUpdatedKeyName, isGreaterThan: lastUpdated)
+        .where(DefaultSettings.lastUpdatedKeyName, isGreaterThan: Timestamp.fromDate(DateTime.parse(lastUpdated)))
         .snapshots()
         .map(
             (querySnapshot) => querySnapshot

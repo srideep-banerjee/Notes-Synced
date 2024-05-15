@@ -8,7 +8,7 @@ class FirebaseHelper {
   late Future<FirebaseApp> _futureFirebaseApp;
   late Authenticator authenticator;
   late FirestoreHelper firestoreHelper;
-  final FirebaseEmulator _firebaseEmulator = const FirebaseEmulator("localhost", 9099);
+  final FirebaseEmulator _firebaseEmulator = const FirebaseEmulator("192.168.207.102", 9099);
 
   FirebaseHelper(){
     _futureFirebaseApp = Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

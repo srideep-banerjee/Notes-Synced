@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:notes_flutter/firebase/auth.dart';
 import 'package:notes_flutter/firebase/firebase_helper.dart';
 import 'package:notes_flutter/firebase/firestore_helper.dart';
 import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/local/preferences_helper.dart';
+import 'package:notes_flutter/sync/connectivity_helper.dart';
+import 'package:notes_flutter/sync/sync_helper.dart';
 import 'package:notes_flutter/ui/home/home_page.dart';
 import 'package:provider/provider.dart';
 
@@ -24,7 +27,8 @@ class _MyAppState extends State<MyApp> {
   late PreferencesHelper _preferencesHelper;
   late FirebaseHelper _firebaseHelper;
   late FirestoreHelper _firestoreHelper;
-  late Stream<User?> _userStream;
+  late Authenticator _authenticator;
+  late SyncHelper _syncHelper;
 
   @override
   void initState() {
@@ -32,11 +36,17 @@ class _MyAppState extends State<MyApp> {
     _databaseHelper = DatabaseHelper();
     _preferencesHelper = PreferencesHelper();
     _firebaseHelper = FirebaseHelper();
-    _userStream = _firebaseHelper.authenticator.getUserStream();
     _firestoreHelper = _firebaseHelper.firestoreHelper;
+    _authenticator = _firebaseHelper.authenticator;
+    _syncHelper = SyncHelper(_databaseHelper, _firebaseHelper, _preferencesHelper);
   }
 
-
+  @override
+  void dispose() {
+    _syncHelper.dispose();
+    _databaseHelper.dispose();
+    super.dispose();
+  }
 
   // This widget is the root of your application.
   @override
@@ -62,10 +72,14 @@ class _MyAppState extends State<MyApp> {
             value: _firestoreHelper,
             updateShouldNotify: (_,__) => false,
           ),
-          StreamProvider<User?>.value(
-            value: _userStream,
-            initialData: null,
-          )
+          Provider<Authenticator>.value(
+            value: _authenticator,
+            updateShouldNotify: (_,__) => false,
+          ),
+          Provider<SyncHelper>.value(
+            value: _syncHelper,
+            updateShouldNotify: (_,__) => false,
+          ),
         ],
         child: const HomePage(),
       ),

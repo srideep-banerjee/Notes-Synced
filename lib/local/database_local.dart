@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:notes_flutter/firebase/firestore_note_model.dart';
 import 'package:notes_flutter/local/note_model.dart';
 import 'package:notes_flutter/models/notes_item.dart';
+import 'package:notes_flutter/util/async/multiuse_streams.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
@@ -12,16 +13,37 @@ class DatabaseHelper {
   late Future<Database> _futureDatabase;
   String DATABASE_NAME = "notes_database.db";
 
+  late Sink<List<NoteModel>> _noteSink;
+
+  late Future<List<NoteModel>> _initialNotesList;
+
+  late MultiUseStream<List<NoteModel>> _multiUseStream;
+
   DatabaseHelper() {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
       _futureDatabase = _getDatabaseFuture(DATABASE_NAME);
-      return;
+    } else {
+      _futureDatabase = getDatabasesPath().then((databasePath) =>
+          _getDatabaseFuture(join(databasePath, DATABASE_NAME)));
     }
-    _futureDatabase = getDatabasesPath().then(
-      (databasePath) => _getDatabaseFuture(join(databasePath, DATABASE_NAME))
+
+    _initialNotesList = getNoteList();
+
+    StreamController<List<NoteModel>> controller = StreamController(
+      onListen: () {
+        print("listening to notes stream");
+        _initialNotesList.then((value) {
+          print("Initial notes fetched");
+          _noteSink.add(value);
+        });
+      }
     );
+    _multiUseStream = MultiUseStream(controller.stream);
+    _noteSink = controller.sink;
   }
+
+  Stream<List<NoteModel>> get notesStream => _multiUseStream.stream();
 
   Future<Database> _getDatabaseFuture(String path) {
     return openDatabase(
@@ -92,6 +114,8 @@ class DatabaseHelper {
       conflictAlgorithm: ConflictAlgorithm.rollback,
     );
 
+    notifyStream();
+
     return index;
   }
 
@@ -105,6 +129,9 @@ class DatabaseHelper {
       whereArgs: [noteModel.index],
       conflictAlgorithm: ConflictAlgorithm.fail,
     );
+
+    notifyStream();
+
     print("$count rows affected");
   }
 
@@ -125,7 +152,7 @@ class DatabaseHelper {
         .map((value) => value["firestoreId"] as String)
         .toSet();
 
-    await db.transaction<void>((txn) async {
+    List<Object?> results = await db.transaction<List<Object?>>((txn) async {
       Batch batch = txn.batch();
       for (FirestoreNoteModel firebaseNote in firebaseNotes) {
         Map<String,Object?> map = {
@@ -146,7 +173,10 @@ class DatabaseHelper {
         where: "firestoreId IN (${List.filled(deletedFirestoreIdList.length, "?").join(",")})",
         whereArgs: deletedFirestoreIdList,
       );
+      return await batch.commit();
     });
+
+    notifyStream();
   }
 
   Future<void> updateNewFirestoreIds(List<int> indices, List<String> firestoreIds) async {
@@ -163,6 +193,8 @@ class DatabaseHelper {
       }
       return batch.commit();
     });
+
+    notifyStream();
   }
 
   Future<void> deleteMultipleNotes(Iterable<int> indices) async {
@@ -173,6 +205,8 @@ class DatabaseHelper {
       where: "`index` IN (${List.filled(indices.length, "?").join(",")})",
       whereArgs: List.of(indices),
     );
+
+    notifyStream();
   }
 
   Future<void> deleteNote(NoteModel noteModel) async {
@@ -183,9 +217,16 @@ class DatabaseHelper {
       where: "`index` = ?",
       whereArgs: [noteModel.index],
     );
+
+    notifyStream();
+  }
+
+  void notifyStream() async {
+    _noteSink.add(await getNoteList());
   }
 
   void dispose() {
+    _multiUseStream.close();
     _futureDatabase.then((database) => database.close());
   }
 }
