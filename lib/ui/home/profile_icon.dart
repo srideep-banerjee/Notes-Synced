@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notes_flutter/firebase/auth.dart';
 import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
-import 'package:notes_flutter/firebase_options.dart';
+import 'package:notes_flutter/secrets.dart';
 import 'package:provider/provider.dart';
 
 class ProfileIcon extends StatefulWidget {
@@ -67,7 +67,7 @@ class _ProfileIconState extends State<ProfileIcon> {
         providers: [
           EmailAuthProvider(),
           GoogleProvider(
-            clientId: DefaultFirebaseOptions.webClientId,
+            clientId: webClientId,
           )
         ],
         actions: [
