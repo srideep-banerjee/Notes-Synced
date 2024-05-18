@@ -102,17 +102,6 @@ class FirestoreHelper {
     await batch.commit();
   }
 
-  Future<List<FirestoreNoteModel>> getUpdatedNoteList(String lastUpdated, String uid) async {
-    FirebaseFirestore firestore = await _futureFirebaseFirestore;
-    QuerySnapshot<Map<String, dynamic>> querySnapshot = await firestore
-        .collection("users/$uid/notes/")
-        .where(DefaultSettings.lastUpdatedKeyName, isGreaterThan: lastUpdated)
-        .get();
-
-    return querySnapshot.docs.map((value) {
-      return FirestoreNoteModel.fromMap(value.data(), value.id);
-    }).toList();
-  }
 
   /// Gets a streams of notes changes after lastUpdated for the user uid
   Stream<List<NotesChangeModel>> getNoteQueryStream(String lastUpdated, String uid) async* {

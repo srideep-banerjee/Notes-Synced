@@ -40,71 +40,12 @@ class SyncHelper {
     _syncStreamSubscription = _syncStream().listen((event) {});
   }
 
-  Future<void> performStartupSync() async {
-    if (!syncable) return;
-
+  Future<void> createUserDocIfNecessary() async {
     String uid = user!.uid;
-
     UserDocumentModel? userDoc = await firestoreHelper.getUserDocument(uid);
-
-    String remoteLastUpdated = userDoc?.lastUpdated ?? DateTime.timestamp().toString();
-
     if (userDoc == null) {
       await firestoreHelper.createUserDocument(uid);
     }
-
-    String localLastUpdatedTime = await preferencesHelper
-        .getString(DefaultSettings.lastUpdatedKeyName) ?? "";
-
-    List<NoteModel> localUpserts = await databaseHelper
-        .getLocalUpsertList(localLastUpdatedTime);
-
-    List<int> insertIndicesList = localUpserts.indexed
-        .where((element) => element.$2.firestoreId == null)
-        .map((e) => e.$1)
-        .toList();
-
-    List<String> newIds = await _generateAndUpdateFirestoreIdsLocally(
-      insertIndicesList
-          .map((e) => localUpserts[e].index)
-          .toList(),
-    );
-
-    //Updating localUpserts list with new firestore ids for other uses
-    for (var element in insertIndicesList.indexed) {
-      localUpserts[element.$2] = localUpserts[element.$2]
-          .setFirestoreId(newIds[element.$1]);
-    }
-
-    //Fetching remote note changes from firestore
-    List<FirestoreNoteModel> firestoreNoteList = await firestoreHelper
-        .getUpdatedNoteList(localLastUpdatedTime, uid);
-
-    //Filter out remote note changes that were overwritten locally
-    Set<String> localFirestoreIds = localUpserts
-        .map((e) => e.firestoreId!)
-        .toSet();
-    firestoreNoteList = firestoreNoteList
-        .where((element) => !localFirestoreIds.contains(element.documentId))
-        .toList();
-
-    //Updating localUpserts in firestore
-    await firestoreHelper.upsertAllNotes(
-      uid,
-      localUpserts
-          .map((e) => e.toFirestoreNoteModel()!)
-          .toList(),
-    );
-
-    //Updating remote note changes in local database
-    await databaseHelper.upsertAndDeleteFirebaseNotes(firestoreNoteList, []);
-
-    await preferencesHelper.setString(
-      DefaultSettings.lastUpdatedKeyName,
-      remoteLastUpdated,
-    );
-
-    localLastUpdatedTime = remoteLastUpdated;
   }
 
   Stream<void> _syncStream() async* {
@@ -126,6 +67,7 @@ class SyncHelper {
         print("user changed 2");
         this.user = user;
         if (pendingSyncExportsExist && syncable) {
+          await createUserDocIfNecessary();
           await exportPendingSyncs();
         }
       },
@@ -165,7 +107,6 @@ class SyncHelper {
   }
 
   Future<void> exportPendingSyncs() async {
-    print("EXPORT PENDING SYNC CALLED");
     String uid = user!.uid;
     String localLastUpdatedTime = await preferencesHelper
         .getString(DefaultSettings.lastUpdatedKeyName) ?? "";
