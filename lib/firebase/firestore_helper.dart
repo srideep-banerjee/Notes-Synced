@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:notes_flutter/default_settings.dart';
 import 'package:notes_flutter/firebase/firebase_emulator.dart';
 import 'package:notes_flutter/firebase/firestore_note_model.dart';
+import 'package:notes_flutter/firebase/note_delete_log_model.dart';
 import 'package:notes_flutter/firebase/notes_change_model.dart';
 import 'package:notes_flutter/firebase/user_document_model.dart';
 import 'package:notes_flutter/models/notes_item.dart';
@@ -28,30 +29,20 @@ class FirestoreHelper {
     FirebaseFirestore firestore = await _futureFirebaseFirestore;
 
     await firestore.doc("users/$uid").set(
-      {"last_updated": FieldValue.serverTimestamp()},
-      SetOptions(merge: true),
+      {
+        "last_updated": FieldValue.serverTimestamp(),
+        "delete_index": 0,
+      },
     );
   }
 
   Future<UserDocumentModel?> getUserDocument(String uid) async {
     FirebaseFirestore firestore = await _futureFirebaseFirestore;
 
-    UserDocumentModel? from(
-        DocumentSnapshot<Map<String, dynamic>> snapshot,
-        SnapshotOptions? options
-        ) {
-      if (!snapshot.exists) return null;
-      return UserDocumentModel.fromMap(snapshot.data()!);
-    }
-
-    Map<String, Object?> to(UserDocumentModel? userDocumentModel, SetOptions? options) {
-      return userDocumentModel?.toMap() ?? <String, Object?>{};
-    }
-
     return (
         await firestore
             .doc("users/$uid")
-            .withConverter(fromFirestore: from, toFirestore: to)
+            .withConverter(fromFirestore: UserDocumentModel.from, toFirestore: UserDocumentModel.to)
             .get()
     ).data();
   }
@@ -82,6 +73,8 @@ class FirestoreHelper {
   }
 
   Future<void> upsertAllNotes(String uid, List<FirestoreNoteModel> notes) async {
+    if (notes.isEmpty) return;
+
     FirebaseFirestore firestore = await _futureFirebaseFirestore;
     WriteBatch batch = firestore.batch();
 
@@ -102,6 +95,62 @@ class FirestoreHelper {
     await batch.commit();
   }
 
+  Future<void> deleteAllNotes(String uid, List<String> documentIds) async {
+    if (documentIds.isEmpty) return;
+
+    FirebaseFirestore firestore = await _futureFirebaseFirestore;
+
+    await firestore.runTransaction((transaction) async {
+      UserDocumentModel? udm = (await transaction
+          .get(firestore.doc("users/$uid").withConverter(
+        fromFirestore: UserDocumentModel.from,
+        toFirestore: UserDocumentModel.to,
+      ))).data();
+
+      int beginIndex = udm!.deleteIndex;
+      for (int i = 0; i < documentIds.length; i++) {
+        int index = (beginIndex + i) % DefaultSettings.maxDeleteLogCount;
+        transaction.set(
+            firestore.doc("users/$uid/deleted/del$index"),
+            {
+              "last_deleted": FieldValue.serverTimestamp(),
+              "document_id": documentIds[i],
+            }
+        );
+        transaction.delete(firestore.doc("users/$uid/notes/${documentIds[i]}"));
+      }
+
+      int newIndex = (beginIndex + documentIds.length) % DefaultSettings.maxDeleteLogCount;
+      transaction.set(
+        firestore.doc("users/$uid"),
+        { "delete_index": newIndex },
+        SetOptions(merge: true),
+      );
+    });
+  }
+
+  Stream<List<NoteDeleteLogModel>> getDeletedIds(String uid, String lastDeleted) async* {
+    FirebaseFirestore firestore = await _futureFirebaseFirestore;
+
+    if (lastDeleted.isEmpty) lastDeleted = DateTime(2).toUtc().toString();
+
+    yield* firestore
+        .collection("users/$uid/deleted")
+        .where("last_deleted", isGreaterThan: Timestamp.fromDate(DateTime.parse(lastDeleted)))
+        .withConverter(fromFirestore: NoteDeleteLogModel.from, toFirestore: NoteDeleteLogModel.to)
+        .snapshots()
+        .map(
+          (querySnapshot) => querySnapshot
+          .docChanges
+          .where(
+            (docChange) => docChange.type != DocumentChangeType.removed,
+          )
+          .map(
+            (docChange) => docChange.doc.data()!,
+          )
+          .toList(),
+        );
+  }
 
   /// Gets a streams of notes changes after lastUpdated for the user uid
   Stream<List<NotesChangeModel>> getNoteQueryStream(String lastUpdated, String uid) async* {

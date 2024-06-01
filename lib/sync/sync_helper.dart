@@ -7,6 +7,7 @@ import 'package:notes_flutter/firebase/auth.dart';
 import 'package:notes_flutter/firebase/firebase_helper.dart';
 import 'package:notes_flutter/firebase/firestore_helper.dart';
 import 'package:notes_flutter/firebase/firestore_note_model.dart';
+import 'package:notes_flutter/firebase/note_delete_log_model.dart';
 import 'package:notes_flutter/firebase/notes_change_model.dart';
 import 'package:notes_flutter/firebase/user_document_model.dart';
 import 'package:notes_flutter/local/database_local.dart';
@@ -15,6 +16,7 @@ import 'package:notes_flutter/local/preferences_helper.dart';
 import 'package:notes_flutter/models/notes_item.dart';
 import 'package:notes_flutter/sync/connectivity_helper.dart';
 import 'package:notes_flutter/sync/sync_stream.dart';
+import 'package:notes_flutter/util/async/multiuse_streams.dart';
 
 class SyncHelper {
 
@@ -29,7 +31,10 @@ class SyncHelper {
   DatabaseHelper databaseHelper;
   PreferencesHelper preferencesHelper;
 
+  late MultiUseStream<InternetConnectionStatus> _connectionStream;
+
   late StreamSubscription<void> _syncStreamSubscription;
+  late StreamSubscription<void> _deleteLogStreamSubscription;
 
   SyncHelper(
       this.databaseHelper,
@@ -37,7 +42,11 @@ class SyncHelper {
       this.preferencesHelper)
       : firestoreHelper = firebaseHelper.firestoreHelper,
         authenticator = firebaseHelper.authenticator {
+
+    _connectionStream = MultiUseStream(ConnectivityHelper().connectivityStream);
+
     _syncStreamSubscription = _syncStream().listen((event) {});
+    _deleteLogStreamSubscription = _deleteLogStream().listen((event) {});
   }
 
   Future<void> createUserDocIfNecessary() async {
@@ -53,44 +62,26 @@ class SyncHelper {
         .getString(DefaultSettings.lastUpdatedKeyName) ?? "";
 
     Stream<User?> userStream = authenticator.getUserStream();
-    Stream<InternetConnectionStatus> connectionStream = ConnectivityHelper()
-        .connectivityStream;
+    Stream<InternetConnectionStatus> connectionStream = _connectionStream.stream();
 
-    Stream<List<NotesChangeModel>> noteChangeStream = SyncStream(
+    Stream<List<NotesChangeModel>> noteChangeStream = SyncStream<List<NotesChangeModel>>(
       userStream,
       connectionStream,
       (user) {
         print("User changed 1");
         return firestoreHelper.getNoteQueryStream(lastUpdated, user.uid);
       },
-      (user) async {
-        print("user changed 2");
-        this.user = user;
-        if (pendingSyncExportsExist && syncable) {
-          await createUserDocIfNecessary();
-          await exportPendingSyncs();
-        }
-      },
-      (connectionStatus) async {
-        print("Connection status: ${connectionStatus.name}");
-        this.connectionStatus = connectionStatus;
-        if (pendingSyncExportsExist && syncable) {
-          await exportPendingSyncs();
-        }
-      }
+      _onUserChange,
+      _onConnectionChange,
     ).stream;
 
     await for(List<NotesChangeModel> noteChanges in noteChangeStream) {
+      print("NOTE CHANGE EVENT : length = ${noteChanges.length}");
       List<FirestoreNoteModel> firestoreNoteList = noteChanges
           .where((element) => element.changeType != DocumentChangeType.removed)
           .map((element) => element.newData!).toList();
 
-      List<String> deletedFirestoreIdList = noteChanges
-          .where((element) => element.changeType == DocumentChangeType.removed)
-          .map((element) => element.deletedId!)
-          .toList();
-
-      await databaseHelper.upsertAndDeleteFirebaseNotes(firestoreNoteList, deletedFirestoreIdList);
+      await databaseHelper.upsertFirebaseNotes(firestoreNoteList);
 
       if (firestoreNoteList.isEmpty) continue;
 
@@ -105,14 +96,86 @@ class SyncHelper {
       yield noteChanges;
     }
   }
+  
+  Stream<List<NoteDeleteLogModel>> _deleteLogStream() async* {
+    String lastDeleted = await preferencesHelper.getString(DefaultSettings.lastDeletedKeyName) ?? "";
+
+    Stream<User?> userStream = authenticator.getUserStream();
+    Stream<InternetConnectionStatus> connectionStream = _connectionStream.stream();
+
+    Stream<List<NoteDeleteLogModel>> deleteLogStream = SyncStream<List<NoteDeleteLogModel>>(
+      userStream,
+      connectionStream,
+      (user) => firestoreHelper.getDeletedIds(user.uid, lastDeleted),
+      _onUserChange,
+      _onConnectionChange,
+
+    ).stream;
+
+    await for(List<NoteDeleteLogModel> deleteLogs in deleteLogStream) {
+      print("DELETE LOG EVENT : ${deleteLogs.map((e) => e.documentId).toList()}");
+      if (deleteLogs.isEmpty) continue;
+
+      Set<String> deletedIds = deleteLogs.map((e) => e.documentId).toSet();
+      await databaseHelper.deleteByFirestoreIds(deletedIds);
+
+      lastDeleted = deleteLogs
+          .reduce((fn1, fn2) => fn1.lastDeleted.compareTo(fn2.lastDeleted) == 1 ? fn1 : fn2)
+          .lastDeleted;
+      await preferencesHelper.setString(
+        DefaultSettings.lastDeletedKeyName,
+        lastDeleted,
+      );
+
+      yield deleteLogs;
+    }
+  }
+
+  Future<void> _onUserChange(User? user) async {
+    if (this.user?.uid == user?.uid) return;
+    print("USER CHANGED");
+    print(user?.uid);
+    this.user = user;
+    if (pendingSyncExportsExist && syncable) {
+      await createUserDocIfNecessary();
+      await exportPendingSyncs();
+    }
+  }
+
+  Future<void> _onConnectionChange(InternetConnectionStatus connectionStatus) async {
+    if (this.connectionStatus == connectionStatus) return;
+    this.connectionStatus = connectionStatus;
+    if (pendingSyncExportsExist && syncable) {
+      await exportPendingSyncs();
+    }
+  }
 
   Future<void> exportPendingSyncs() async {
+    print("EXPORTING PENDING SYNCS");
     String uid = user!.uid;
+
+    List<String> pendingDeleteIds = await databaseHelper.pendingDeleteIds();
+    await firestoreHelper.deleteAllNotes(uid, pendingDeleteIds);
+
     String localLastUpdatedTime = await preferencesHelper
         .getString(DefaultSettings.lastUpdatedKeyName) ?? "";
 
     List<NoteModel> localUpserts = await databaseHelper
         .getLocalUpsertList(localLastUpdatedTime);
+
+    List<int> localUnsyncedIndices = localUpserts
+        .where((note) => note.firestoreId == null)
+        .map((note) => note.index)
+        .toList(growable: false);
+
+    List<String> newFirestoreIds = await _generateAndUpdateFirestoreIdsLocally(localUnsyncedIndices);
+
+    int newIdIndex = 0;
+    for (int i = 0; i < localUpserts.length; i++) {
+      if (localUpserts[i].firestoreId == null) {
+        localUpserts[i] = localUpserts[i].setFirestoreId(newFirestoreIds[newIdIndex++]);
+      }
+    }
 
     await firestoreHelper.upsertAllNotes(
       uid,
@@ -120,14 +183,18 @@ class SyncHelper {
           .map((e) => e.toFirestoreNoteModel()!)
           .toList(),
     );
+
+    pendingSyncExportsExist = false;
   }
 
+  ///Sometimes FirestoreId might be non-null in local database even if
+  ///note is absent in firestore, but only in rare conditions
   Future<void> addNewNote(NotesItem note) async {
     String uid = user?.uid ?? "";
     int index = await databaseHelper
         .addNote(note, _getCurrentTimestamp());
-    String newFirestoreId = (await _generateAndUpdateFirestoreIdsLocally([index]))[0];
     if (syncable) {
+      String newFirestoreId = (await _generateAndUpdateFirestoreIdsLocally([index]))[0];
       await firestoreHelper.setNote(uid, newFirestoreId, note);
     } else {
       pendingSyncExportsExist = true;
@@ -136,16 +203,36 @@ class SyncHelper {
 
   Future<void> updateNote(NoteModel note) async {
     if (syncable) {
-
       if (note.firestoreId == null) {
         String newFirestoreId = (await _generateAndUpdateFirestoreIdsLocally([note.index]))[0];
-
         note = note.setFirestoreId(newFirestoreId);
       }
       await firestoreHelper.setNote(user!.uid, note.firestoreId!, note.toNotesItem());
-
     } else {
-      await databaseHelper.updateNote(note);
+      pendingSyncExportsExist = true;
+    }
+    await databaseHelper.updateNote(note);
+  }
+
+  Future<void> deleteNote(NoteModel note) async {
+    await deleteAllNotes([note]);
+  }
+
+  /// Assumes all notes are already present in local database
+  Future<void> deleteAllNotes(List<NoteModel> notes) async {
+    if (notes.isEmpty) return;
+
+    List<String> firestoreIds = notes
+        .where((element) => element.firestoreId != null)
+        .map((e) => e.firestoreId!)
+        .toList(growable: false);
+
+    await databaseHelper.deleteMultipleNotes(notes, addToPending: true);
+
+    if (syncable) {
+      await firestoreHelper.deleteAllNotes(user!.uid, firestoreIds);
+      await databaseHelper.clearPendingDelete();
+    } else {
       pendingSyncExportsExist = true;
     }
   }
@@ -167,6 +254,7 @@ class SyncHelper {
   String _getCurrentTimestamp() => DateTime.timestamp().toString();
 
   Future<void> dispose() async {
-    _syncStreamSubscription.cancel();
+    await _syncStreamSubscription.cancel();
+    await _deleteLogStreamSubscription.cancel();
   }
 }

@@ -52,7 +52,9 @@ class DatabaseHelper {
       onCreate: (db, version) {
         return db.execute(
           "CREATE TABLE notes(`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, time TEXT NOT NULL, firestoreId TEXT)",
-        );
+        ).then((_) {
+          return db.execute("CREATE TABLE pending_deletes(firestoreId TEXT PRIMARY KEY NOT NULL)");
+        });
       },
 
       onUpgrade: (Database db, int oldVersion, int newVersion) {
@@ -76,10 +78,15 @@ class DatabaseHelper {
             db.execute("ALTER TABLE notes ADD COLUMN firestoreId TEXT")
           );
         }
+        if (oldVersion < 4 && newVersion >= 4) {
+          chainFuture(
+            db.execute("CREATE TABLE pending_deletes(firestoreId TEXT PRIMARY KEY NOT NULL)")
+          );
+        }
 
         return upgradeFuture;
       },
-      version: 3,
+      version: 4,
     );
   }
 
@@ -135,7 +142,7 @@ class DatabaseHelper {
     print("$count rows affected");
   }
 
-  Future<void> upsertAndDeleteFirebaseNotes(List<FirestoreNoteModel> firebaseNotes, List<String> deletedFirestoreIdList) async {
+  Future<void> upsertFirebaseNotes(List<FirestoreNoteModel> firebaseNotes) async {
     Database db = await _futureDatabase;
 
     List<String> allFirestoreIds = firebaseNotes.map((val) => val.documentId).toList();
@@ -154,6 +161,7 @@ class DatabaseHelper {
 
     List<Object?> results = await db.transaction<List<Object?>>((txn) async {
       Batch batch = txn.batch();
+
       for (FirestoreNoteModel firebaseNote in firebaseNotes) {
         Map<String,Object?> map = {
           "title": firebaseNote.title,
@@ -168,18 +176,29 @@ class DatabaseHelper {
         }
       }
 
-      batch.delete(
-        "notes",
-        where: "firestoreId IN (${List.filled(deletedFirestoreIdList.length, "?").join(",")})",
-        whereArgs: deletedFirestoreIdList,
-      );
       return await batch.commit();
     });
 
     notifyStream();
   }
 
+  Future<void> deleteByFirestoreIds(Iterable<String> deletedFirestoreIds) async {
+    if (deletedFirestoreIds.isEmpty) return;
+
+    Database db = await _futureDatabase;
+
+    await db.delete(
+      "notes",
+      where: "firestoreId IN (${List.filled(deletedFirestoreIds.length, "?").join(",")})",
+      whereArgs: deletedFirestoreIds.toList(growable: false),
+    );
+
+    notifyStream();
+  }
+
   Future<void> updateNewFirestoreIds(List<int> indices, List<String> firestoreIds) async {
+    if (indices.isEmpty) return;
+
     Database database = await _futureDatabase;
     database.transaction((txn) {
       Batch batch = txn.batch();
@@ -197,28 +216,57 @@ class DatabaseHelper {
     notifyStream();
   }
 
-  Future<void> deleteMultipleNotes(Iterable<int> indices) async {
+  Future<void> deleteMultipleNotes(Iterable<NoteModel> notes, {bool addToPending = false}) async {
     Database database = await _futureDatabase;
+    Iterable<int> indices = notes.map((e) => e.index);
+    Iterable<String> docIds = notes
+        .where((element) => element.firestoreId != null)
+        .map((e) => e.firestoreId!);
 
-    await database.delete(
-      "notes",
-      where: "`index` IN (${List.filled(indices.length, "?").join(",")})",
-      whereArgs: List.of(indices),
-    );
+    await database.transaction((txn) async {
+      await txn.delete(
+        "notes",
+        where: "`index` IN (${List.filled(indices.length, "?").join(",")})",
+        whereArgs: List.of(indices),
+      );
+
+      if (addToPending) {
+
+        Batch batch = txn.batch();
+        for (String docId in docIds) {
+          batch.insert(
+            "pending_deletes",
+            {
+              "firestoreId" : docId,
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+        }
+        await batch.commit();
+      }
+    });
 
     notifyStream();
   }
 
-  Future<void> deleteNote(NoteModel noteModel) async {
+  Future<void> deleteNote(NoteModel noteModel, {bool addToPending = false}) async {
+    await deleteMultipleNotes([noteModel], addToPending: addToPending);
+  }
+
+  Future<List<String>> pendingDeleteIds() async {
     Database database = await _futureDatabase;
 
-    await database.delete(
-      "notes",
-      where: "`index` = ?",
-      whereArgs: [noteModel.index],
+    List<Map<String, Object?>> data = await database.query(
+      "pending_deletes",
     );
-
-    notifyStream();
+    return data.map((e) => e["firestoreId"] as String).toList(growable: false);
+  }
+  
+  Future<void> clearPendingDelete() async {
+    Database db = await _futureDatabase;
+    await db.delete(
+      "pending_deletes",
+    );
   }
 
   void notifyStream() async {

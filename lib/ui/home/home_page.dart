@@ -1,21 +1,14 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:notes_flutter/firebase/firebase_helper.dart';
-import 'package:notes_flutter/firebase/firestore_helper.dart';
-import 'package:notes_flutter/firebase/notes_change_model.dart';
 import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/local/note_model.dart';
-import 'package:notes_flutter/local/preferences_helper.dart';
 import 'package:notes_flutter/sync/sync_helper.dart';
 import 'package:notes_flutter/ui/details/details_page.dart';
 import 'package:notes_flutter/models/notes_item.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:notes_flutter/ui/home/notes_item_display.dart';
 import 'package:notes_flutter/ui/home/profile_icon.dart';
 import 'package:provider/provider.dart';
-import 'package:notes_flutter/util/date_time_util.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -163,31 +156,15 @@ class HomePageState extends State<HomePage> {
 
   void _deleteSelectedItems() {
 
-    databaseHelper?.deleteMultipleNotes(
-        List.of(
-            selectedIndices.map<int>((index) => notesItemList[index].index)
-        )
+    List<NoteModel> selectedNotes = List.of(
+      selectedIndices.map((e) => notesItemList[e]),
     );
-
-    setState(() {
-      // List<int> rearrangedIndices = List.of(selectedIndices);
-      // rearrangedIndices.sort((a, b) => b.compareTo(a));
-      // for (int index in rearrangedIndices) {
-      //   notesItemList.removeAt(index);
-      // }
-      // TODO: add deleteMultiple feature to sync helper
-      selectedIndices.clear();
-    });
+    syncHelper?.deleteAllNotes(selectedNotes);
+    selectedIndices.clear();
   }
 
   void _deleteItem(int index) {
-
-    databaseHelper?.deleteNote(notesItemList[index]);
-
-    // setState(() {
-    //   notesItemList.removeAt(index);
-    // });
-    // TODO: add deleteItem feature to sync helper
+    syncHelper?.deleteNote(notesItemList[index]);
   }
   
   PreferredSizeWidget getDefaultAppBar(BuildContext context) {

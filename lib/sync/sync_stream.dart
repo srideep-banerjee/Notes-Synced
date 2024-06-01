@@ -2,28 +2,27 @@ import 'dart:async';
 
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:notes_flutter/firebase/auth.dart';
-import 'package:notes_flutter/firebase/notes_change_model.dart';
 
-class SyncStream {
+class SyncStream<T> {
 
-  late Stream<List<NotesChangeModel>> _resultStream;
+  late Stream<T> _resultStream;
 
   SyncStream(
       Stream<User?> userStream,
       Stream<InternetConnectionStatus> connectionStream,
-      Stream<List<NotesChangeModel>> Function(User) userToChangeStreamConverter,
+      Stream<T> Function(User) userToStreamConverter,
       [
         Future<void> Function(User?)? onUserChange,
         Future<void> Function(InternetConnectionStatus)? onConnectionChange
       ]
       ) {
 
-    StreamController<List<NotesChangeModel>> controller = StreamController();
-    Sink<List<NotesChangeModel>> resultSink = controller.sink;
+    StreamController<T> controller = StreamController();
+    Sink<T> resultSink = controller.sink;
     _resultStream = controller.stream;
 
     StreamSubscription<User?>? userStreamSub;
-    StreamSubscription<List<NotesChangeModel>>? changesStreamSub;
+    StreamSubscription<T>? changesStreamSub;
     StreamSubscription<InternetConnectionStatus>? connectionStreamSub;
 
     controller.onListen = () {
@@ -35,7 +34,7 @@ class SyncStream {
         if (onUserChange != null) await onUserChange(user);
 
         if (user != null) {
-          changesStreamSub = userToChangeStreamConverter(user)
+          changesStreamSub = userToStreamConverter(user)
               .listen(resultSink.add);
         }
       });
