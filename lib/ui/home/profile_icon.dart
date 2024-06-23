@@ -26,8 +26,6 @@ class _ProfileIconState extends State<ProfileIcon> {
     });
   }
 
-
-
   @override
   Widget build(BuildContext context) {
 
