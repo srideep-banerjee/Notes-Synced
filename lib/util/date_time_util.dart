@@ -17,7 +17,7 @@ String getLocalizedTime(String time) {
       return "${_getMonth(dateTime.month)} ${dateTime.day} at ${dateTime.hour}:${dateTime.minute~/10}${dateTime.minute%10}";
     }
   } else {
-    return "${_getMonth(dateTime.month)} ${dateTime.day}, ${dateTime.year} at ${dateTime.minute~/10}${dateTime.minute%10}";
+    return "${_getMonth(dateTime.month)} ${dateTime.day}, ${dateTime.year} at ${dateTime.hour}:${dateTime.minute~/10}${dateTime.minute%10}";
   }
 }
 
