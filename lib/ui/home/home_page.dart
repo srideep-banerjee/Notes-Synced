@@ -87,7 +87,8 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget homePageList() {
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.all(8.0),
       itemCount: notesItemList.length,
       itemBuilder: (context, index) {
         return NotesItemDisplay(
@@ -119,6 +120,9 @@ class HomePageState extends State<HomePage> {
           },
         );
       },
+      separatorBuilder: (BuildContext context, int index) {
+        return const SizedBox(height: 8.0);
+      },
     );
   }
 
@@ -129,11 +133,6 @@ class HomePageState extends State<HomePage> {
     NotesItem? result = await resultFuture;
     if (result != null && databaseHelper != null) {
       syncHelper?.addNewNote(result);
-      // String time = DateTime.timestamp().toString();
-      // int index = await databaseHelper!.addNote(result, time);
-      // setState(() {
-      //   notesItemList.add(result.toNoteModel(index, time));
-      // });
     }
   }
 
@@ -147,10 +146,6 @@ class HomePageState extends State<HomePage> {
       String time = DateTime.timestamp().toString();
       NoteModel noteModel = result.toNoteModel(notesItemList[index].index, time);
       syncHelper?.updateNote(noteModel);
-      // databaseHelper?.updateNote(noteModel);
-      // setState(() {
-      //   notesItemList[index] = noteModel;
-      // });
     }
   }
 

@@ -54,16 +54,54 @@ class _NotesItemDisplayState extends State<NotesItemDisplay> {
         onLongPress: () {
           if(!kIsWeb) widget.onLongPress();
         },
-        child: Row(
-          children: [
-            Expanded(child: Text(widget.title)),
-            if (kIsWeb && isHovered) IconButton(
-              onPressed: widget.onDelete,
-              icon: const Icon(Icons.delete),
-            ),
-            if (!kIsWeb && widget.isSelected) const Icon(Icons.check_circle),
-            Text(widget.time),
-          ],
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor.withAlpha(51),
+            borderRadius: const BorderRadius.all(Radius.circular(8))
+          ),
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(widget.time, style: Theme.of(context).textTheme.labelSmall),
+                  ],
+                ),
+              ),
+              if (kIsWeb && isHovered) SizedBox(
+                height: 24,
+                child: IconButton(
+                  padding: const EdgeInsets.all(0.0),
+                  onPressed: widget.onDelete,
+                  icon: Icon(
+                    Icons.delete_rounded,
+                    color: Theme.of(context).primaryColor,
+                    size: 24,
+                  ),
+                ),
+              ),
+              if (!kIsWeb && widget.isSelected) SizedBox(
+                height: 24,
+                child: IconButton(
+                  padding: const EdgeInsets.all(0.0),
+                  onPressed: widget.onDelete,
+                  icon: Icon(
+                    Icons.check_circle,
+                    color: Theme.of(context).primaryColor,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
