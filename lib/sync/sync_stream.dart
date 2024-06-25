@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:notes_flutter/firebase/auth.dart';
 
@@ -27,7 +28,9 @@ class SyncStream<T> {
 
     controller.onListen = () {
       userStreamSub = userStream.listen((user) async {
-        print("USER EVENT OCCURRED");
+        if (kDebugMode) {
+          print("USER EVENT OCCURRED");
+        }
 
         changesStreamSub?.cancel();
 
@@ -40,7 +43,9 @@ class SyncStream<T> {
       });
 
       connectionStreamSub = connectionStream.listen((connected) async {
-        print("CONNECTION EVENT OCCURRED");
+        if (kDebugMode) {
+          print("CONNECTION EVENT OCCURRED");
+        }
 
         if (onConnectionChange != null) {
           await onConnectionChange(connected);
@@ -55,7 +60,9 @@ class SyncStream<T> {
     };
 
     controller.onCancel = () {
-      print("Sync stream controller is cancelling");
+      if (kDebugMode) {
+        print("Sync stream controller is cancelling");
+      }
       userStreamSub?.cancel();
       connectionStreamSub?.cancel();
       changesStreamSub?.cancel();

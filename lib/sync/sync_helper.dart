@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:notes_flutter/default_settings.dart';
 import 'package:notes_flutter/firebase/auth.dart';
@@ -68,7 +69,9 @@ class SyncHelper {
       userStream,
       connectionStream,
       (user) {
-        print("User changed 1");
+        if (kDebugMode) {
+          print("User changed 1");
+        }
         return firestoreHelper.getNoteQueryStream(lastUpdated, user.uid);
       },
       _onUserChange,
@@ -76,7 +79,9 @@ class SyncHelper {
     ).stream;
 
     await for(List<NotesChangeModel> noteChanges in noteChangeStream) {
-      print("NOTE CHANGE EVENT : length = ${noteChanges.length}");
+      if (kDebugMode) {
+        print("NOTE CHANGE EVENT : length = ${noteChanges.length}");
+      }
       List<FirestoreNoteModel> firestoreNoteList = noteChanges
           .where((element) => element.changeType != DocumentChangeType.removed)
           .map((element) => element.newData!).toList();
@@ -113,7 +118,9 @@ class SyncHelper {
     ).stream;
 
     await for(List<NoteDeleteLogModel> deleteLogs in deleteLogStream) {
-      print("DELETE LOG EVENT : ${deleteLogs.map((e) => e.documentId).toList()}");
+      if (kDebugMode) {
+        print("DELETE LOG EVENT : ${deleteLogs.map((e) => e.documentId).toList()}");
+      }
       if (deleteLogs.isEmpty) continue;
 
       Set<String> deletedIds = deleteLogs.map((e) => e.documentId).toSet();
@@ -133,8 +140,10 @@ class SyncHelper {
 
   Future<void> _onUserChange(User? user) async {
     if (this.user?.uid == user?.uid) return;
-    print("USER CHANGED");
-    print(user?.uid);
+    if (kDebugMode) {
+      print("USER CHANGED");
+      print(user?.uid);
+    }
     this.user = user;
     if (pendingSyncExportsExist && syncable) {
       await createUserDocIfNecessary();
@@ -151,7 +160,9 @@ class SyncHelper {
   }
 
   Future<void> exportPendingSyncs() async {
-    print("EXPORTING PENDING SYNCS");
+    if (kDebugMode) {
+      print("EXPORTING PENDING SYNCS");
+    }
     String uid = user!.uid;
 
     List<String> pendingDeleteIds = await databaseHelper.pendingDeleteIds();

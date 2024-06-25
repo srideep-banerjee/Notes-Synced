@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/local/note_model.dart';
@@ -30,13 +31,10 @@ class HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    print("Home page init called");
     selectedIndices = {};
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      print("addPostFrameCallback called");
 
       setState(() {
-        print("Set state called");
         databaseHelper = Provider.of<DatabaseHelper>(context, listen: false);
         syncHelper = Provider.of<SyncHelper>(context, listen: false);
         // changesStream = syncHelper!.startRealtimeSync();
@@ -47,7 +45,9 @@ class HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    print("Home page build called");
+    if (kDebugMode) {
+      print("Home page build called");
+    }
     return Scaffold(
       appBar: selectedIndices.isEmpty ? getDefaultAppBar(context) : getSelectionAppBar(context),
       floatingActionButton: FloatingActionButton(
@@ -60,26 +60,32 @@ class HomePageState extends State<HomePage> {
         stream: notesStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.active) {
-            print("Notes List is loading");
+            if (kDebugMode) {
+              print("Notes List is loading");
+            }
             return const Center(
               child: Text("Loading ..."),
             );
           }
 
-          if (snapshot.hasError) {
+          if (snapshot.hasError && kDebugMode) {
             print("Error in notes stream: ${snapshot.error as Exception}");
           }
 
           if (snapshot.hasData) notesItemList = snapshot.data!;
 
           if (notesItemList.isEmpty) {
-            print("List empty");
+            if (kDebugMode) {
+              print("List empty");
+            }
             return const Center(
                 child: Text("No notes created")
             );
           }
 
-          print("Displaying List");
+          if (kDebugMode) {
+            print("Displaying List");
+          }
           return homePageList();
         },
       )

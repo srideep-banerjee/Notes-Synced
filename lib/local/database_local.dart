@@ -32,9 +32,13 @@ class DatabaseHelper {
 
     StreamController<List<NoteModel>> controller = StreamController(
       onListen: () {
-        print("listening to notes stream");
+        if (kDebugMode) {
+          print("listening to notes stream");
+        }
         _initialNotesList.then((value) {
-          print("Initial notes fetched");
+          if (kDebugMode) {
+            print("Initial notes fetched");
+          }
           _noteSink.add(value);
         });
       }
@@ -58,7 +62,9 @@ class DatabaseHelper {
       },
 
       onUpgrade: (Database db, int oldVersion, int newVersion) {
-        print("Upgrading database");
+        if (kDebugMode) {
+          print("Upgrading database");
+        }
         Future<void>? upgradeFuture;
 
         chainFuture(Future<void> future) {
@@ -139,7 +145,9 @@ class DatabaseHelper {
 
     notifyStream();
 
-    print("$count rows affected");
+    if (kDebugMode) {
+      print("$count rows affected");
+    }
   }
 
   Future<void> upsertFirebaseNotes(List<FirestoreNoteModel> firebaseNotes) async {

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 class MultiUseStream<T> {
   _MultiUseStreamDataHolder<T>? _lastData;
   late Stream<T> _origin;
@@ -8,7 +10,9 @@ class MultiUseStream<T> {
   MultiUseStream(Stream<T> origin) {
     this._origin = origin.asBroadcastStream(
       onListen: (subscription) {
-        print("listening to multiStream");
+        if (kDebugMode) {
+          print("listening to multiStream");
+        }
         _lastOriginSubscription = subscription;
         subscription.resume();
       },
