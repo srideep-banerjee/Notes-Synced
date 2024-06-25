@@ -1,9 +1,6 @@
-import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:notes_flutter/firebase/auth.dart';
-import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
-import 'package:notes_flutter/secrets.dart';
+import 'package:notes_flutter/ui/home/auth_screens.dart';
 import 'package:provider/provider.dart';
 
 class ProfileIcon extends StatefulWidget {
@@ -38,10 +35,11 @@ class _ProfileIconState extends State<ProfileIcon> {
 
         return GestureDetector(
           onTap: () {
+            Widget screen = AuthScreenContainer(
+              user == null ? AuthScreen.signIn : AuthScreen.profile,
+            );
             Navigator.of(context).push(
-              user == null ?
-              _signInPageRout(context) :
-              _profileScreenPageRout(context),
+              MaterialPageRoute(builder: (context2) => screen)
             );
           },
           child: Padding(
@@ -56,37 +54,6 @@ class _ProfileIconState extends State<ProfileIcon> {
           ),
         );
       },
-    );
-  }
-
-  MaterialPageRoute _signInPageRout(BuildContext context) {
-    return MaterialPageRoute(
-      builder: (context) => SignInScreen(
-        providers: [
-          EmailAuthProvider(),
-          GoogleProvider(
-            clientId: webClientId,
-          )
-        ],
-        actions: [
-          AuthStateChangeAction((context, state) {
-            if (state is AuthFailed) {
-              PlatformException pe = (state.exception as PlatformException);
-              print(
-                  "////////////////////////${pe.code} , ${pe.message}///////////////////////");
-              print(pe.stacktrace);
-            }
-          })
-        ],
-      ),
-    );
-  }
-
-  MaterialPageRoute _profileScreenPageRout(BuildContext context) {
-    return MaterialPageRoute(
-      builder: (context) => const ProfileScreen(
-        actions: [],
-      ),
     );
   }
 }
@@ -122,7 +89,7 @@ class TextProfileIconImage extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(
           color: _borderColor,
-          width: 1.0,
+          width: 2.0,
         ),
       ),
       child: Center(
