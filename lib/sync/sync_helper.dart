@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ffi';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -144,7 +145,11 @@ class SyncHelper {
       print("USER CHANGED");
       print(user?.uid);
     }
+    bool shouldClearDelete = this.user != null;
     this.user = user;
+    if (shouldClearDelete) {
+      await databaseHelper.clearPendingDelete();
+    }
     if (pendingSyncExportsExist && syncable) {
       await createUserDocIfNecessary();
       await exportPendingSyncs();
@@ -167,6 +172,7 @@ class SyncHelper {
 
     List<String> pendingDeleteIds = await databaseHelper.pendingDeleteIds();
     await firestoreHelper.deleteAllNotes(uid, pendingDeleteIds);
+    await databaseHelper.clearPendingDelete();
 
     String localLastUpdatedTime = await preferencesHelper
         .getString(DefaultSettings.lastUpdatedKeyName) ?? "";
@@ -226,11 +232,11 @@ class SyncHelper {
   }
 
   Future<void> deleteNote(NoteModel note) async {
-    await deleteAllNotes([note]);
+    await deleteMultipleNotes([note]);
   }
 
   /// Assumes all notes are already present in local database
-  Future<void> deleteAllNotes(List<NoteModel> notes) async {
+  Future<void> deleteMultipleNotes(List<NoteModel> notes) async {
     if (notes.isEmpty) return;
 
     List<String> firestoreIds = notes

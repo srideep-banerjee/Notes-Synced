@@ -160,7 +160,7 @@ class HomePageState extends State<HomePage> {
     List<NoteModel> selectedNotes = List.of(
       selectedIndices.map((e) => notesItemList[e]),
     );
-    syncHelper?.deleteAllNotes(selectedNotes);
+    syncHelper?.deleteMultipleNotes(selectedNotes);
     selectedIndices.clear();
   }
 
