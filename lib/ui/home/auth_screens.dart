@@ -18,16 +18,41 @@ class AuthScreenContainer extends StatelessWidget {
       AuthScreen.signIn => _signInScreen()
     };
 
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        Expanded(child: child)
-      ],
+    return Container(
+      color: Theme.of(context).canvasColor,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth > constraints.maxHeight) {
+            return Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                Expanded(child: child)
+              ],
+            );
+          } else {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0.0, 16.0, 0.0, 0.0),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                Expanded(child: child)
+              ],
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -64,7 +89,7 @@ class AuthScreenContainer extends StatelessWidget {
           };
           ErrorText.localizePlatformError = (BuildContext context, PlatformException e) {
             if (e.code == "network_error") return "Please check your internet connection.";
-            return "Oh no! Something went wrong.";
+            return "Oh no! Something went wrong. code: ${e.code}";
           };
           if (state.exception is FirebaseAuthException) {
             FirebaseAuthException firebaseAuthException = state
