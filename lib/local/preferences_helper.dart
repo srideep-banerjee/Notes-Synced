@@ -26,4 +26,8 @@ class PreferencesHelper {
   Future<bool> setString(String key, String value) async {
     return (await _sharedPreferencesFuture).setString(key, value);
   }
+
+  Future<bool> clean() async {
+    return (await _sharedPreferencesFuture).clear();
+  }
 }

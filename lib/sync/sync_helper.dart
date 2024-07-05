@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ffi';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -51,7 +50,7 @@ class SyncHelper {
     _deleteLogStreamSubscription = _deleteLogStream().listen((event) {});
   }
 
-  Future<void> createUserDocIfNecessary() async {
+  Future<void> _createUserDocIfNecessary() async {
     String uid = user!.uid;
     UserDocumentModel? userDoc = await firestoreHelper.getUserDocument(uid);
     if (userDoc == null) {
@@ -151,7 +150,7 @@ class SyncHelper {
       await databaseHelper.clearPendingDelete();
     }
     if (pendingSyncExportsExist && syncable) {
-      await createUserDocIfNecessary();
+      await _createUserDocIfNecessary();
       await exportPendingSyncs();
     }
   }
@@ -252,6 +251,26 @@ class SyncHelper {
     } else {
       pendingSyncExportsExist = true;
     }
+  }
+
+  Future<void> cleanLocalData() async {
+    await preferencesHelper.clean();
+    await databaseHelper.clean();
+  }
+
+  Future<void> cleanLocalSyncStates() async {
+    await preferencesHelper.clean();
+    await databaseHelper.clearPendingDelete();
+  }
+
+  Future<void> pause() async {
+    _syncStreamSubscription.pause();
+    _deleteLogStreamSubscription.pause();
+  }
+
+  Future<void> resume() async {
+    _syncStreamSubscription.resume();
+    _deleteLogStreamSubscription.resume();
   }
 
   bool get syncable => user != null && connectionStatus == InternetConnectionStatus.connected;

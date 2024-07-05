@@ -277,6 +277,14 @@ class DatabaseHelper {
     );
   }
 
+  Future<void> clean() async {
+    Database db = await _futureDatabase;
+    await db.delete(
+      "notes",
+    );
+    await clearPendingDelete();
+  }
+
   void notifyStream() async {
     _noteSink.add(await getNoteList());
   }

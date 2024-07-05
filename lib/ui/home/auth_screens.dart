@@ -1,21 +1,48 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_ui_auth/firebase_ui_auth.dart';
-import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:notes_flutter/secrets.dart';
+import 'package:notes_flutter/sync/sync_helper.dart';
+import 'package:notes_flutter/ui/home/auth_profile_screen.dart';
+import 'package:notes_flutter/ui/home/auth_signin_screen.dart';
+import 'package:provider/provider.dart';
 
-class AuthScreenContainer extends StatelessWidget {
+class AuthScreenContainer extends StatefulWidget {
   final AuthScreen authScreen;
   const AuthScreenContainer(this.authScreen , {super.key,});
+
+  @override
+  State<AuthScreenContainer> createState() => _AuthScreenContainerState();
+}
+
+class _AuthScreenContainerState extends State<AuthScreenContainer> {
+  late SyncHelper _syncHelper;
+  late AuthScreen authScreen;
+  bool showSignInSelection = false;
+  bool showSignOutSelection = false;
+
+  @override
+  void initState() {
+    super.initState();
+    authScreen = widget.authScreen;
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      setState(() {
+        _syncHelper = Provider.of<SyncHelper>(context, listen: false);
+        _syncHelper.pause();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _syncHelper.resume();
+  }
 
   @override
   Widget build(BuildContext context) {
 
     Widget child = switch (authScreen) {
-      AuthScreen.profile => _profileScreen(),
-      AuthScreen.signIn => _signInScreen()
+      AuthScreen.profile => AuthProfileScreen(_onSignOut),
+      AuthScreen.signIn => AuthSignInScreen(_onSignIn)
     };
 
     return Container(
@@ -28,7 +55,9 @@ class AuthScreenContainer extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () {
-                    Navigator.pop(context);
+                    if (!showSignInSelection && !showSignOutSelection) {
+                      Navigator.pop(context);
+                    }
                   },
                 ),
                 Expanded(child: child)
@@ -56,71 +85,22 @@ class AuthScreenContainer extends StatelessWidget {
     );
   }
 
-  Widget _signInScreen() {
-    return SignInScreen(
-      showAuthActionSwitch: true,
-      showPasswordVisibilityToggle: true,
-      providers: [
-        GoogleProvider(clientId: webClientId)
-      ],
-      actions: [
-        AuthStateChangeAction<SignedIn>((context, state) {
-          if (state.user == null || state.user?.emailVerified == true) {
-            Navigator.pop(context);
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context2) => const AuthScreenContainer(
-                  AuthScreen.profile,
-                ),
-              )
-
-            );
-          }
-        }),
-        AuthStateChangeAction<AuthFailed>((context, state) {
-          ErrorText.localizeError = (BuildContext context, FirebaseAuthException e) {
-            return switch (e.code) {
-              'user-not-found' || 'wrong-password' => 'Email/Password incorrect',
-              'credential-already-in-use' => 'This email is already in use.',
-              _ => 'Something went wrong. code: ${e.code}',
-            };
-          };
-          ErrorText.localizePlatformError = (BuildContext context, PlatformException e) {
-            if (e.code == "network_error") return "Please check your internet connection.";
-            return "Oh no! Something went wrong. code: ${e.code}";
-          };
-          if (state.exception is FirebaseAuthException) {
-            FirebaseAuthException firebaseAuthException = state
-                .exception as FirebaseAuthException;
-            if (kDebugMode) {
-              print("AUTH FAILED FAE CODE = ${firebaseAuthException.code}");
-            }
-          }
-          if (state.exception is PlatformException) {
-            PlatformException platformException = state
-                .exception as PlatformException;
-            if (kDebugMode) {
-              print("AUTH FAILED PE CODE = ${platformException.code}");
-            }
-          }
-        }),
-      ],
-    );
+  void _onSignIn(User? user) {
+    if (user == null || !user.emailVerified) {
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        showSignInSelection = true;
+        authScreen = AuthScreen.profile;
+      });
+    }
   }
 
-  Widget _profileScreen() {
-    return ProfileScreen(
-      actions: [
-        SignedOutAction((context) {
-          Navigator.pop(context);
-        }),
-        // AuthStateChangeAction<AuthState>((context, state) {
-        //   print("ProfileScreen state change : ${state.runtimeType}");
-        // })
-      ],
-    );
+  void _onSignOut() {
+    showSignOutSelection = true;
+    _syncHelper.cleanLocalSyncStates().then((_) {
+      if (context.mounted) Navigator.of(context).pop();
+    });
   }
 }
 
