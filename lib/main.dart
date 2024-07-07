@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:notes_flutter/firebase/auth.dart';
 import 'package:notes_flutter/firebase/firebase_helper.dart';
 import 'package:notes_flutter/firebase/firestore_helper.dart';
 import 'package:notes_flutter/local/database_local.dart';
 import 'package:notes_flutter/local/preferences_helper.dart';
-import 'package:notes_flutter/sync/connectivity_helper.dart';
 import 'package:notes_flutter/sync/sync_helper.dart';
 import 'package:notes_flutter/ui/home/home_page.dart';
 import 'package:provider/provider.dart';
@@ -53,7 +51,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Notes Flutter',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade800),
         useMaterial3: true,
