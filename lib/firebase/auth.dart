@@ -7,14 +7,19 @@ class Authenticator {
   final Future<fb.FirebaseAuth> _futureFirebaseAuth;
 
   Authenticator(Future<FirebaseApp> futureFirebaseApp, [FirebaseEmulator? emulator]):
-        _futureFirebaseAuth = futureFirebaseApp.
-        then((_) {
-          fb.FirebaseAuth auth = fb.FirebaseAuth.instance;
-          if(emulator != null) {
-            auth.useAuthEmulator(emulator.ip, emulator.port);
-          }
-          return auth;
-        });
+        _futureFirebaseAuth = futureFirebaseApp
+            .then(
+              (_) {
+                fb.FirebaseAuth auth = fb.FirebaseAuth.instance;
+                if(emulator != null) {
+                  return auth
+                      .useAuthEmulator(emulator.ip, emulator.port)
+                      .then((value) => auth);
+                } else {
+                  return auth;
+                }
+              },
+            );
 
   Stream<User?> getUserStream() async* {
     fb.FirebaseAuth auth = await _futureFirebaseAuth;
