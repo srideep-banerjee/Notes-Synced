@@ -2,7 +2,7 @@ import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
 
 class AuthProfileScreen extends StatelessWidget {
-  final void Function() onSignOut;
+  final void Function(BuildContext context) onSignOut;
   const AuthProfileScreen(this.onSignOut, {super.key});
 
   @override
@@ -10,7 +10,7 @@ class AuthProfileScreen extends StatelessWidget {
     return ProfileScreen(
       actions: [
         SignedOutAction((context) {
-          onSignOut();
+          onSignOut(context);
         }),
       ],
     );

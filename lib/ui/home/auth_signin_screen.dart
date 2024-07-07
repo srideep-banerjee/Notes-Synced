@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:notes_flutter/secrets.dart';
 
 class AuthSignInScreen extends StatelessWidget {
-  final void Function(User? user) onSignIn;
+  final void Function(User? user, BuildContext context) onSignIn;
   const AuthSignInScreen(this.onSignIn, {super.key});
 
   @override
@@ -20,7 +20,7 @@ class AuthSignInScreen extends StatelessWidget {
       ],
       actions: [
         AuthStateChangeAction<SignedIn>((context, state) {
-          onSignIn(state.user);
+          onSignIn(state.user, context);
         }),
         AuthStateChangeAction<AuthFailed>((context, state) {
           ErrorText.localizeError = (BuildContext context, FirebaseAuthException e) {

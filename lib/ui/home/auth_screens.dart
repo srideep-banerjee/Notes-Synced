@@ -1,9 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:notes_flutter/sync/sync_helper.dart';
 import 'package:notes_flutter/ui/home/auth_profile_screen.dart';
 import 'package:notes_flutter/ui/home/auth_signin_screen.dart';
-import 'package:provider/provider.dart';
 
 class AuthScreenContainer extends StatefulWidget {
   final AuthScreen authScreen;
@@ -14,7 +12,6 @@ class AuthScreenContainer extends StatefulWidget {
 }
 
 class _AuthScreenContainerState extends State<AuthScreenContainer> {
-  late SyncHelper _syncHelper;
   late AuthScreen authScreen;
   bool showSignInSelection = false;
   bool showSignOutSelection = false;
@@ -23,18 +20,6 @@ class _AuthScreenContainerState extends State<AuthScreenContainer> {
   void initState() {
     super.initState();
     authScreen = widget.authScreen;
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      setState(() {
-        _syncHelper = Provider.of<SyncHelper>(context, listen: false);
-        _syncHelper.pause();
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    _syncHelper.resume();
   }
 
   @override
@@ -55,9 +40,7 @@ class _AuthScreenContainerState extends State<AuthScreenContainer> {
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () {
-                    if (!showSignInSelection && !showSignOutSelection) {
-                      Navigator.pop(context);
-                    }
+                    Navigator.pop(context);
                   },
                 ),
                 Expanded(child: child)
@@ -85,7 +68,7 @@ class _AuthScreenContainerState extends State<AuthScreenContainer> {
     );
   }
 
-  void _onSignIn(User? user) {
+  void _onSignIn(User? user, BuildContext context) {
     if (user == null || !user.emailVerified) {
       Navigator.pop(context);
     } else {
@@ -96,11 +79,9 @@ class _AuthScreenContainerState extends State<AuthScreenContainer> {
     }
   }
 
-  void _onSignOut() {
+  void _onSignOut(BuildContext context) {
     showSignOutSelection = true;
-    _syncHelper.cleanLocalSyncStates().then((_) {
-      if (context.mounted) Navigator.of(context).pop();
-    });
+    if (context.mounted) Navigator.of(context).pop();
   }
 }
 
