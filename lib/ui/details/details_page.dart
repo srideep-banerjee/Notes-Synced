@@ -40,12 +40,7 @@ class _DetailsPageState extends State<DetailsPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            NotesItem input = widget.notesItem??const NotesItem(title: "", content: "");
-            if (titleController.text != "" && (titleController.text != input.title || bodyController.text != input.content)) {
-              Navigator.pop(context, NotesItem(title: titleController.text, content: bodyController.text));
-            } else {
-              Navigator.pop(context);
-            }
+            Navigator.pop(context);
           },
         ),
         actions: [
@@ -55,7 +50,13 @@ class _DetailsPageState extends State<DetailsPage> {
               color: Theme.of(context).colorScheme.onPrimary,
             ),
             onPressed: () {
-
+              NotesItem input = widget.notesItem??const NotesItem(title: "", content: "");
+              if (titleController.text == "") return;
+              if (titleController.text != input.title || bodyController.text != input.content) {
+                Navigator.pop(context, NotesItem(title: titleController.text, content: bodyController.text));
+              } else {
+                Navigator.pop(context);
+              }
             },
           ),
         ],
