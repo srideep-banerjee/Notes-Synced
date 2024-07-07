@@ -151,6 +151,10 @@ class HomePageState extends State<HomePage> {
     if (result != null) {
       String time = DateTime.timestamp().toString();
       NoteModel noteModel = result.toNoteModel(notesItemList[index].index, time);
+      String? firestoreId = notesItemList[index].firestoreId;
+      if (firestoreId != null) {
+        noteModel = noteModel.setFirestoreId(firestoreId);
+      }
       syncHelper?.updateNote(noteModel);
     }
   }

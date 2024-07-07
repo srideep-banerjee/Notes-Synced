@@ -144,10 +144,10 @@ class SyncHelper {
       print("USER CHANGED");
       print(user?.uid);
     }
-    bool shouldClearDelete = this.user != null;
+    bool shouldClearSyncStates = this.user != null;
     this.user = user;
-    if (shouldClearDelete) {
-      await databaseHelper.clearPendingDelete();
+    if (shouldClearSyncStates) {
+      await cleanLocalSyncStates();
     }
     if (pendingSyncExportsExist && syncable) {
       await _createUserDocIfNecessary();
@@ -243,12 +243,12 @@ class SyncHelper {
         .map((e) => e.firestoreId!)
         .toList(growable: false);
 
-    await databaseHelper.deleteMultipleNotes(notes, addToPending: true);
+    await databaseHelper.deleteMultipleNotes(notes, addToPending: user != null);
 
     if (syncable) {
       await firestoreHelper.deleteAllNotes(user!.uid, firestoreIds);
       await databaseHelper.clearPendingDelete();
-    } else {
+    } else if(user != null) {
       pendingSyncExportsExist = true;
     }
   }
